@@ -28,7 +28,7 @@ unsigned long interval, last_cycle;
 unsigned long loop_micros;
 
 // Set new state
-void set_state(fsm_t& fsm, int new_state)
+void set_state(fsm_t & fsm, int new_state)
 {
   if (fsm.state != new_state) {  // if the state chnanged tis is reset
     fsm.state = new_state;
@@ -79,17 +79,17 @@ void loop()
       fsm2.tis = cur_time - fsm2.tes; 
 
       // Calculate next state for the first state machine
-      if (fsm1.state == 0 && S1){
-        fsm1.new_state = 1;
-      } else if(fsm1.state == 1 && !S1) {
-        fsm1.new_state = 0;
-      } else if (fsm1.state == 1 && fsm1.tis > 1000){
-        fsm1.new_state = 2;
-      } else if (fsm1.state == 2 && fsm1.tis > 1000){
-        fsm1.new_state = 1;
-      } else if (fsm1.state == 2 && !S1){
-        fsm1.new_state = 0;
-      }
+       if (fsm1.state == 0 && (S1 || S2 || !S1 || !S2) && fsm1.tis > 500){
+         fsm1.new_state = 1;
+       } else if(fsm1.state == 1 && (S1 || S2 || !S1 || !S2) && fsm1.tis > 500) {
+         fsm1.new_state = 0;
+       } /* else if (fsm1.state == 1 && fsm1.tis > 500){
+         fsm1.new_state = 2;
+       } else if (fsm1.state == 2 && fsm1.tis > 500){
+         fsm1.new_state = 1;
+       } else if (fsm1.state == 2 && !S1){
+         fsm1.new_state = 0;
+       } */
 
       // Calculate next state for the second state machine
       /*if (fsm2.state == 0 && S2 && !prevS2){
@@ -107,9 +107,9 @@ void loop()
         LED_1 = 0;
       } else if (fsm1.state == 1){
         LED_1 = 1;
-      } else if (fsm1.state == 2){
+      } /* else if (fsm1.state == 2){
         LED_1 = 0;
-      }
+      } */
 
       // A more compact way
       // LED_1 = (fsm1.state == 1);

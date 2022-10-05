@@ -83,13 +83,13 @@ void loop()
         fsm1.new_state = 1;
       } else if(fsm1.state == 1 && !S1) {
         fsm1.new_state = 0;
-      } else if (fsm1.state == 1 && fsm1.tis > 1000){
+      } /* else if (fsm1.state == 1 && fsm1.tis > 1000){
         fsm1.new_state = 2;
       } else if (fsm1.state == 2 && fsm1.tis > 1000){
         fsm1.new_state = 1;
       } else if (fsm1.state == 2 && !S1){
         fsm1.new_state = 0;
-      }
+      } */
 
       // Calculate next state for the second state machine
       /*if (fsm2.state == 0 && S2 && !prevS2){
@@ -107,9 +107,9 @@ void loop()
         LED_1 = 0;
       } else if (fsm1.state == 1){
         LED_1 = 1;
-      } else if (fsm1.state == 2){
+      } /* else if (fsm1.state == 2){
         LED_1 = 0;
-      }
+      } */
 
       // A more compact way
       // LED_1 = (fsm1.state == 1);

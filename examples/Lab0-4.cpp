@@ -89,14 +89,14 @@ void loop()
         fsm1.new_state = 1;
       } else if (fsm1.state == 2 && !S1){
         fsm1.new_state = 0;
-      }
-
+      } 
+      
       // Calculate next state for the second state machine
-      /*if (fsm2.state == 0 && S2 && !prevS2){
+      if (fsm2.state == 0 && S2){
         fsm2.new_state = 1;
-      } else if (fsm2.state == 1 && S2 && !prevS2){
+      } else if(fsm2.state == 1 && !S2) {
         fsm2.new_state = 0;
-      }*/
+      }
 
       // Update the states
       set_state(fsm1, fsm1.new_state);
@@ -116,7 +116,11 @@ void loop()
       // LED_1 = (state == 1)||(state ==2);  if LED1 must be set in states 1 and 2
       
       // Actions set by the current state of the second state machine
-      // LED_2 = (fsm2.state == 0);
+      if (fsm2.state == 0){
+        LED_2 = 0;
+      } else if (fsm2.state == 1){
+        LED_2 = 1;
+      }
 
       // Set the outputs
       digitalWrite(LED1_pin, LED_1);
