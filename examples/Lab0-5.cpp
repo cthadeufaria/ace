@@ -26,6 +26,7 @@ fsm_t fsm1, fsm2;
 
 unsigned long interval, last_cycle;
 unsigned long loop_micros;
+bool k = false;
 
 // Set new state
 void set_state(fsm_t& fsm, int new_state)
@@ -92,16 +93,20 @@ void loop()
       } 
       
       // Calculate next state for the second state machine
-      if (fsm2.state == 0 && S2){
+      if (fsm2.state == 0 && S2 && !k){
         fsm2.new_state = 1;
-      } else if(fsm2.state == 1 && !S2 && prevS2) {
+      } else if(fsm2.state == 1 && !S2 && !k) {
         fsm2.new_state = 1;
-      } else if(fsm2.state == 1 && S2) {
+        k = true;
+      } else if(fsm2.state == 1 && S2 && k) {
         fsm2.new_state = 0;
-      } else if(fsm2.state == 0 && !S2 && prevS2) {
+      } else if(fsm2.state == 0 && !S2 && k) {
         fsm2.new_state = 0;
+        k = false;
+      } else if(fsm2.state == 0 && S2 && !k) {
+        fsm2.new_state = 1;
       }
-
+      
       // Update the states
       set_state(fsm1, fsm1.new_state);
       set_state(fsm2, fsm2.new_state);
