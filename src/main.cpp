@@ -32,13 +32,9 @@ fsm_t fsm_s1, fsm_s2, fsm_config0, fsm_config1, fsm_config2, fsm_config3, fsm_pc
 unsigned long interval, last_cycle;
 unsigned long loop_micros;
 unsigned long T,periodo_led, Tmod2, blink;
-//cc-> change configuration
 //cs-> configuration setting
 //S2 click or double click
-uint8_t cc, cs,S1_click,S2_click, S2_double;
-/*bool cc = false; 
-bool cs = false;
-bool cp = false;*/
+uint8_t cs, S1_click, S2_click, S2_double;
 
 // Set new state
 void set_state(fsm_t & fsm, int new_state)
@@ -102,13 +98,13 @@ void evolve_S1(fsm_t &fsm){
       }
       else if(s1 > prevs1){
         fsm.new_state = 5;
-        cc=1;
+        S1_click=1;
       }
       break;
     
     case 5:
-      if(cc==0)
-        fsm.new_state = 0;
+      if(S1_click==0)
+        fsm.new_state = 3;
       break;
   }
 }
@@ -147,21 +143,21 @@ void evolve_config0(fsm_t &fsm){
  // Calculate next state for the 3rd state machine
   switch (fsm.state){
     case 0:
-    if(cc==1){
+    if(S1_click==1 && cs==1){
       fsm.new_state=1;
-      cc=0;
+      S1_click=0;
     }
     break;
     case 1:
-    if(cc==1){
+    if(S1_click==1 && cs==1){
       fsm.new_state=2;
-      cc=0;
+      S1_click=0;
     }
     break;
     case 2:
-    if(cc==1){
+    if(S1_click==1 && cs==1){
       fsm.new_state=0;
-      cc=0;
+      S1_click=0;
     }
     break;
   }
@@ -303,14 +299,15 @@ void evolve_end(fsm_t &fsm){
 void evolve_control(fsm_t &fsm){
   switch(fsm.state){
     case 0:
-      if(S1_click==1){
+      if(S1_click==1 && cs==0){
         fsm.new_state=1;
         periodo_led=T;
         S1_click=0;
       }
       break;
+
     case 1:
-      if(fsm.tis >= periodo_led && fsm_pc.state==0){
+      if(fsm.tis >= periodo_led && fsm_pc.state==0 && cs==0){
         fsm.new_state=2;
         periodo_led=T;
       }
@@ -318,18 +315,21 @@ void evolve_control(fsm_t &fsm){
         fsm.new_state=11;
       }
       break;
+    
     case 2:
-      if(S1_click==1){
+      if(S1_click==1 && cs==0){
         fsm.new_state=1;
         periodo_led=T;
         S1_click=0;
       }
       break;
+    
     default:
-      if(fsm.state>10)
-       {if(fsm_pc.state==0)
-        fsm.new_state=fsm.state-10;
-        }break;
+      if(fsm.state>10 && cs==0){
+        if(fsm_pc.state==0)
+          fsm.new_state=fsm.state-10;
+        }
+        break;
   } 
 }
 
@@ -422,6 +422,7 @@ void act_leds(){
     //led1
     if(fsm_led1.state==6){
       LED_1=map(fsm_control.tis, 0, T, 255,0);
+      analogWrite(LED1_pin,LED_1);
     }
     else if(fsm_led1.state==2 || fsm_led1.state==3 || fsm_led1.state==5 || fsm_led1.state==10){
         digitalWrite(LED1_pin, HIGH);
@@ -453,7 +454,6 @@ void setup()
   
   s1=1;
   s2=1;
-  cc=0;
   cs=0;
   S1_click=0;
   S2_click=0;
