@@ -10,13 +10,14 @@
 
 #define S1_pin 2
 #define S2_pin 3
-
+#define PORT COM4
 // structure to define finite state machine
 // tes - time entering state / tis - time in state
 typedef struct {
   int state, new_state;
   unsigned long tes, tis;
 } fsm_t;
+
 
 // Input variables
 uint8_t s1, prevs1;
@@ -27,14 +28,20 @@ uint8_t s2, prevs2;
 uint8_t LED_1, LED_2, LED_3, LED_4, LED_5, LED_6, LED_7;
 
 // Our finite state machines
-fsm_t fsm_s1, fsm_s2, fsm_config0, fsm_config1, fsm_config2, fsm_config3, fsm_pc, fsm_end ,fsm_control, fsm_led1, fsm_led2, fsm_led3, fsm_led4, fsm_led5, fsm_led6, fsm_led7;
+fsm_t fsm_s1, fsm_s2, fsm_config0, fsm_config1, fsm_config2, fsm_config3, fsm_pause, 
+fsm_end ,fsm_control, fsm_led1, fsm_led2, fsm_led3, fsm_led4, fsm_led5, fsm_led6, fsm_led7;
 
 unsigned long interval, last_cycle;
 unsigned long loop_micros;
-unsigned long T,periodo_led, Tmod2, blink;
+unsigned long periodo_led, Tmod2, blink, lum;
+unsigned long T = 2000;
+//S1_click-> change configuration
 //cs-> configuration setting
 //S2 click or double click
-uint8_t cs, S1_click, S2_click, S2_double;
+uint8_t pause, cs, S1_click, S2_click, S2_double, m, end, way,tstate, point;
+/*bool S1_click = false; 
+bool cs = false;
+bool cp = false;*/
 
 // Set new state
 void set_state(fsm_t & fsm, int new_state)
@@ -54,13 +61,13 @@ void update_tis(){
   fsm_config1.tis = cur_time - fsm_config1.tes;
   fsm_config2.tis = cur_time - fsm_config2.tes;
   fsm_config3.tis = cur_time - fsm_config3.tes;
-  fsm_pc.tis = cur_time - fsm_pc.tes;
+  fsm_pause.tis = cur_time - fsm_pause.tes;
   fsm_end.tis = cur_time - fsm_end.tes;
   fsm_control.tis= cur_time - fsm_control.tes;
   fsm_led1.tis= cur_time - fsm_led1.tes;
 }
 
-void evolve_S1(fsm_t &fsm){
+void evolve_S1(fsm_t &fsm, fsm_t &control){
 // Calculate next state for the 1st state machine
   switch (fsm.state)
     {
@@ -71,17 +78,19 @@ void evolve_S1(fsm_t &fsm){
 
     case 1:
       if(s1 > prevs1){
-        fsm.new_state = 2;
-        S1_click=1;
+        fsm.new_state=2;
+        control.new_state=1;        
       }
+        
       else if(fsm.tis>=3000){
         fsm.new_state = 3;
         cs = 1;
+        control.new_state=0;
       }
       break;
-
+  
     case 2:
-      if(S1_click==0)
+      if(point==1)
         fsm.new_state = 0;
       break;
     
@@ -93,7 +102,6 @@ void evolve_S1(fsm_t &fsm){
     case 4:
       if(fsm.tis >= 3000){
         fsm.new_state = 0;
-        fsm_control.new_state=0;
         cs = 0;
       }
       else if(s1 > prevs1){
@@ -119,17 +127,22 @@ void evolve_S2(fsm_t &fsm){
       break;
 
     case 1:
-      if(fsm.tis>=500){
-        fsm.new_state = 0;
+      if(fsm.tis>=500 || cs==0){
+        fsm.new_state = 2;
         S2_click = 1;
       }
       else if(s2 > prevs2){
-        fsm.new_state = 2;
+        fsm.new_state = 3;
         S2_double = 1;
       }
       break;
 
     case 2:
+      if(S2_click==0)
+        fsm.new_state = 0;
+      break;
+
+    case 3:
       if(S2_double==0)
         fsm.new_state = 0;
       break;
@@ -143,19 +156,21 @@ void evolve_config0(fsm_t &fsm){
  // Calculate next state for the 3rd state machine
   switch (fsm.state){
     case 0:
-    if(S1_click==1 && cs==1){
+    if(cs==1 && S1_click==1){
       fsm.new_state=1;
       S1_click=0;
     }
     break;
+
     case 1:
-    if(S1_click==1 && cs==1){
+    if(cs==1 && S1_click==1){
       fsm.new_state=2;
       S1_click=0;
     }
     break;
+
     case 2:
-    if(S1_click==1 && cs==1){
+    if(cs==1 && S1_click==1){
       fsm.new_state=0;
       S1_click=0;
     }
@@ -168,25 +183,28 @@ void evolve_config1(fsm_t &fsm){
 // Calculate next state for the 4th state machine
   switch(fsm.state){
     case 0:
-      if(fsm_config0.state == 0 && cs==1 && S2_click==1){
+      if(m == 0 && cs==1 && S2_click==1){
         fsm.new_state=1;
         S2_click=0;
       }
       break;
+
     case 1:
-      if(fsm_config0.state == 0 && cs==1 && S2_click==1){
+      if(m == 0 && cs==1 && S2_click==1){
         fsm.new_state=2;
         S2_click=0;
       }
       break;
+
     case 2:
-      if(fsm_config0.state == 0 && cs==1 && S2_click==1){
+      if(m == 0 && cs==1 && S2_click==1){
         fsm.new_state=3;
         S2_click=0;
       }
       break;
+
     case 3:
-      if(fsm_config0.state == 0 && cs==1 && S2_click==1){
+      if(m == 0 && cs==1 && S2_click==1){
         fsm.new_state=0;
         S2_click=0;
       }
@@ -199,19 +217,19 @@ void evolve_config2(fsm_t &fsm){
 // Calculate next state for the 5th state machine
   switch(fsm.state){
     case 0:
-      if(fsm_config0.state == 1 && cs==1 && S2_click==1){
+      if(m == 1 && cs==1 && S2_click==1){
         fsm.new_state=1;
         S2_click=0;
       }
       break;
     case 1:
-      if(fsm_config0.state == 1 && cs==1 && S2_click==1){
+      if(m == 1 && cs==1 && S2_click==1){
         fsm.new_state=2;
         S2_click=0;
       }
       break;
     case 2:
-      if(fsm_config0.state == 1 && cs==1 && S2_click==1){
+      if(m == 1 && cs==1 && S2_click==1){
         fsm.new_state=0;
         S2_click=0;
       }
@@ -224,13 +242,13 @@ void evolve_config3(fsm_t &fsm){
 // Calculate next state for the 6th state machine
   switch(fsm.state){
     case 0:
-      if(fsm_config0.state == 2 && cs==1 && S2_click==1){
+      if(m == 2 && cs==1 && S2_click==1){
         fsm.new_state=1;
         S2_click=0;
       }
       break;
     case 1:
-      if(fsm_config0.state == 2 && cs==1 && S2_click==1){
+      if(m == 2 && cs==1 && S2_click==1){
         fsm.new_state=0;
         S2_click=0;
       }
@@ -239,7 +257,7 @@ void evolve_config3(fsm_t &fsm){
 }
 
 // quando no estado 1 o leds atuals piscam
-void evolve_pc(fsm_t &fsm){
+void evolve_pause(fsm_t &fsm, fsm_t &control){
  // Calculate next state for the 7th state machine
   switch(fsm.state){
     case 0:
@@ -247,13 +265,19 @@ void evolve_pc(fsm_t &fsm){
         fsm.new_state=1;
         S2_click=0;
         Tmod2= Tmod2 - fsm_led1.tis;
+        periodo_led= T - control.tis;
+        lum=control.tis;
       }
       break;
     case 1:
       if(cs==0 && S2_click==1){
         fsm.new_state=0;
         S2_click=0;
-        periodo_led= T + fsm.tis;
+        control.new_state= control.state - 10;
+      }
+      else if(cs==1){
+        fsm.new_state=0;
+        S2_click=0;
       }
       break;
   }
@@ -264,29 +288,29 @@ void evolve_pc(fsm_t &fsm){
 void evolve_end(fsm_t &fsm){
   switch (fsm.state){
     case 0:
-      if(fsm_control.state==7)
+      if(fsm_control.state==2)
         fsm.new_state=1;
       break;
     case 1:
-      if(fsm_config3.state==0)
+      if(end==0)
         fsm.new_state=2;
-      else if(fsm_config3.state==1)
+      else if(end==1)
         fsm.new_state=3;
       break;
     case 2:
-      if(fsm_control.state <=1)
+      if(fsm_control.state <1)
         fsm.new_state=0;
       break;
     case 3:
-      if(fsm.tis>=100)
+      if(fsm.tis>=blink)
         fsm.new_state=4;
-      else if(fsm_control.state<=1)
+      else if(fsm_control.state<1)
         fsm.new_state=0;
       break;
     case 4:
-      if(fsm.tis>=100)
+      if(fsm.tis>=blink)
         fsm.new_state=3;
-      else if(fsm_control.state<=1)
+      else if(fsm_control.state<1)
         fsm.new_state=0;
       break;
   }
@@ -296,40 +320,33 @@ void evolve_end(fsm_t &fsm){
 //1 inicia e cada estado desliga um led
 //7 fim
 //falta a pausa
-void evolve_control(fsm_t &fsm){
+void evolve_control(fsm_t &fsm, fsm_t &ss1){
   switch(fsm.state){
     case 0:
-      if(S1_click==1 && cs==0){
+      if(ss1.state==2){
         fsm.new_state=1;
         periodo_led=T;
-        S1_click=0;
+        lum=0;
       }
       break;
 
     case 1:
-      if(fsm.tis >= periodo_led && fsm_pc.state==0 && cs==0){
+      if(fsm.tis >= periodo_led){
         fsm.new_state=2;
         periodo_led=T;
+        lum=0;
       }
-      else if(fsm_pc.state==1){
+      else if(pause){
         fsm.new_state=11;
       }
       break;
-    
+
     case 2:
-      if(S1_click==1 && cs==0){
+      if(ss1.state==2){
         fsm.new_state=1;
         periodo_led=T;
-        S1_click=0;
       }
       break;
-    
-    default:
-      if(fsm.state>10 && cs==0){
-        if(fsm_pc.state==0)
-          fsm.new_state=fsm.state-10;
-        }
-        break;
   } 
 }
 
@@ -338,66 +355,235 @@ void evolve_control(fsm_t &fsm){
 //2 modo 1
 //3-5 modo 2
 //6... modo 3
-void evolve_led1(fsm_t &fsm){
-  if((fsm_pc.state==1 and fsm_control.state==11) || (cs==1 && fsm_config0.state==0)){
-    fsm.new_state=10;
-  }
-  switch (fsm.state){
+void evolve_led1(fsm_t &fsm, fsm_t &control){
+  switch(fsm.state){
     case 0:
-      if(fsm_control.state==1)
+      if(control.state==1 && cs==0)
         fsm.new_state=1;
+      else if((control.state==11 && pause)||(cs==1 && m==0))
+        fsm.new_state=7;
       break;
+    
     case 1:
-      if(fsm_config2.state==0)//modo 1
+      if(way==0)
         fsm.new_state=2;
-      else if(fsm_config2.state==1){//modo 2
+      else if(way==1 && Tmod2 > 0)
         fsm.new_state=3;
-        Tmod2=T/2;  
-      }
-      else if(fsm_config2.state==2)//modo 3
+      else if(way==1 && Tmod2 == 0)
+        fsm.new_state=4;
+      else if(way==2)
         fsm.new_state=6;
       break;
-    //mod1
+
     case 2:
-      if(fsm_control.state==2)
+      if(cs==1||pause||control.state==2)
         fsm.new_state=0;
       break;
-    //mod2
+    
     case 3:
-      if(fsm.tis>= Tmod2)
+      if(cs==1||pause||control.state==2)
+        fsm.new_state=0;
+      else if(fsm.tis>=Tmod2){
         fsm.new_state=4;
+        Tmod2=0;
+      }
       break;
+    
     case 4:
-      if(fsm.tis>=blink)
+      if(cs==1||pause||control.state==2)
+        fsm.new_state=0;
+      else if(fsm.tis>=blink)
         fsm.new_state=5;
-      else if(fsm_control.state==2)
-        fsm.new_state=0;
       break;
+    
     case 5:
-      if(fsm.tis>=blink)
+      if(cs==1||pause||control.state==2)
+        fsm.new_state=0;
+      else if(fsm.tis>=blink)
         fsm.new_state=4;
-      else if(fsm_control.state==2)
-        fsm.new_state=0;
       break;
-    //mod3
+
     case 6:
-        if(fsm_control.state==2)
-            fsm.new_state=0;
-        break;
-    //pausa e cs com modo 1
-    case 10:
-      if(fsm.tis>=blink)
-        fsm.new_state=11;
-      else if((fsm_pc.state=0) && (cs==0|| fsm_config0.state!=0))
+      if(cs==1||pause||control.state==2)
         fsm.new_state=0;
       break;
-    case 11:
+    
+    case 7:
       if(fsm.tis>=blink)
-        fsm.new_state=10;
-      else if((fsm_pc.state=0) && (cs==0|| fsm_config0.state!=0))
+        fsm.new_state=8;
+      else if((!pause && cs==0) || m!=0)
+        fsm.new_state=0;
+      break;
+
+    case 8:
+      if(fsm.tis>=blink)
+        fsm.new_state=7;
+      else if((!pause && cs==0) || m!=0)
         fsm.new_state=0;
       break;
   }
+}
+
+// void evolve_led2(fsm_t &fsm, fsm_t &control){
+//   switch(fsm.state){
+//     case 0:
+//       if(control.state==1 && cs==0)
+//         fsm.new_state=1;
+//       else if((control.state==12 && pause)||(cs==1 && m==0))
+//         fsm.new_state=7;
+//       break;
+    
+//     case 1:
+//       if(way==0 && control.state==2)
+//         fsm.new_state=2;
+//       else if(way==1 && Tmod2 > 0)
+//         fsm.new_state=3;
+//       else if(way==1 && Tmod2 == 0)
+//         fsm.new_state=4;
+//       else if(way==2)
+//         fsm.new_state=6;
+//       break;
+
+//     case 2:
+//       if(cs==1||pause||control.state==2)
+//         fsm.new_state=0;
+//       break;
+    
+//     case 3:
+//       if(cs==1||pause||control.state==2)
+//         fsm.new_state=0;
+//       else if(fsm.tis>=Tmod2){
+//         fsm.new_state=4;
+//         Tmod2=0;
+//       }
+//       break;
+    
+//     case 4:
+//       if(cs==1||pause||control.state==2)
+//         fsm.new_state=0;
+//       else if(fsm.tis>=blink)
+//         fsm.new_state=5;
+//       break;
+    
+//     case 5:
+//       if(cs==1||pause||control.state==2)
+//         fsm.new_state=0;
+//       else if(fsm.tis>=blink)
+//         fsm.new_state=4;
+//       break;
+
+//     case 6:
+//       if(cs==1||pause||control.state==2)
+//         fsm.new_state=0;
+//       break;
+    
+//     case 7:
+//       if(fsm.tis>=blink)
+//         fsm.new_state=8;
+//       else if((!pause && cs==0) || m!=0)
+//         fsm.new_state=0;
+//       break;
+
+//     case 8:
+//       if(fsm.tis>=blink)
+//         fsm.new_state=7;
+//       else if((!pause && cs==0) || m!=0)
+//         fsm.new_state=0;
+//       break;
+//   }
+// }
+
+void evolve_led7(fsm_t &fsm, fsm_t &c1){
+  switch (fsm.state)
+  {
+  case 0:
+    if(cs==1){
+      if(m==0) 
+        fsm.new_state=6;
+      else if(m==1 && way==0)
+        fsm.new_state=1;
+      else if(m==1 && way==1){
+        fsm.new_state=2;
+        Tmod2=T/2;
+      }
+      else if(m==1 && way==3)
+        fsm.new_state=5;
+      else if(m==2 && end==0)
+        fsm.new_state=8;
+      else if(m==2 && end==1)
+        fsm.new_state=9;
+    }
+    break;
+  
+  case 1:
+    if(fsm.tis>=T || m!=1 || cs==0 || way!=0)
+      fsm.new_state=0;
+    break;
+  
+  case 2:
+    if(fsm.tis>=T)
+      fsm.new_state=3;
+    else if(m!=1 || cs==0 || way!=1)
+      fsm.new_state=0;
+    break;
+  
+  case 3:
+    if(fsm.tis>=blink){
+      fsm.new_state=4;
+      Tmod2= Tmod2- fsm.tis;
+    }
+    else if(Tmod2<=0 || m!=1 || cs==0 || way!=1)
+      fsm.new_state=0;
+    break;
+
+  case 4:
+    if(fsm.tis>=blink){
+      fsm.new_state=3;
+      Tmod2= Tmod2- fsm.tis;
+    }
+    else if(Tmod2<=0 || m!=1 || cs==0 || way!=1)
+      fsm.new_state=0;
+    break;
+
+  case 5:
+    if(fsm.tis>=T || m!=1 || cs==0 || way!=2)
+      fsm.new_state=0;
+    break;
+
+  case 6:
+    if(fsm.tis>=T)
+      fsm.new_state=7;
+    else if(cs==0 || m!=0 || c1.new_state!=c1.state)
+      fsm.new_state=0;
+    break;
+  
+  case 7:
+    if(cs==0 || m!=0 || c1.new_state!=c1.state)
+      fsm.new_state=0;
+    break;
+  
+  case 8:
+    if(cs==0 || m!=2 || end==1)
+      fsm.new_state=0;
+    break;
+
+  case 9:
+    if(fsm.tis>=blink/2)
+      fsm.new_state=10;
+    else if(cs==0 || m!=2 || end==0)
+      fsm.new_state=0;
+    break;
+  
+  case 10:
+    if(fsm.tis>=blink/2)
+      fsm.new_state=9;
+    else if(cs==0 || m!=2 || end==0)
+      fsm.new_state=0;
+    break;
+  }
+}
+void act_config0(fsm_t &fsm){
+  m=fsm.state;
 }
 
 void act_config1(fsm_t &fsm){
@@ -418,22 +604,52 @@ void act_config1(fsm_t &fsm){
   }
 }
 
+void act_config2(fsm_t &fsm){
+  way=fsm.state;
+}
+
+void act_config3(fsm_t &fsm){
+  end=fsm.state;
+}
+
+void act_pause(fsm_t &fsm){
+  if(fsm.state==1) pause=true;
+  else pause=false;
+}
+
+void act_control(fsm_t &fsm){
+  point=fsm.state;
+}
 void act_leds(){
     //led1
-    if(fsm_led1.state==6){
-      LED_1=map(fsm_control.tis, 0, T, 255,0);
+    if(fsm_end.state == 3 || fsm_led1.state == 2 || fsm_led1.state == 3 || fsm_led1.state == 5 || fsm_led1.state == 8){
+      digitalWrite(LED1_pin,HIGH);
+    }
+    else if (fsm_led1.state == 6)
+    {
+        LED_1=map(fsm_control.tis+lum, 0, T, 255, 0);
       analogWrite(LED1_pin,LED_1);
     }
-    else if(fsm_led1.state==2 || fsm_led1.state==3 || fsm_led1.state==5 || fsm_led1.state==10){
-        digitalWrite(LED1_pin, HIGH);
-    }
-    else digitalWrite(LED1_pin,LOW);
+    else
+      digitalWrite(LED1_pin,LOW);
+    
     //led2
     //led3
     //led4
     //led5
     //led6
     //led7
+    if(fsm_end.state == 1|| fsm_led7.state == 1 || fsm_led7.state == 2 || fsm_led7.state == 4 || fsm_led7.state == 6 || 
+    fsm_led7.state == 8|| fsm_led7.state == 9){
+      digitalWrite(LED7_pin,HIGH);
+    }
+    else if (fsm_led7.state == 5)
+    {
+        LED_7=map(fsm_control.tis+lum, 0, T, 255, 0);
+      analogWrite(LED7_pin,LED_7);
+    }
+    else
+      digitalWrite(LED7_pin,LOW);
 }
 
 
@@ -451,27 +667,20 @@ void setup()
 
   // Start the serial port with 115200 baudrate
   Serial.begin(115200);
-  
-  s1=1;
-  s2=1;
-  cs=0;
-  S1_click=0;
-  S2_click=0;
-  S2_double=0;
 
-  T=2000;
   blink=100;
   interval = 10;
   set_state(fsm_s1, 0);
-//  set_state(fsm_s2, 0);    
+  set_state(fsm_s2, 0);    
   set_state(fsm_config0, 0);
   set_state(fsm_config1, 0);
   set_state(fsm_config2, 0);
   set_state(fsm_config3, 0);
-  set_state(fsm_pc, 0);
+  set_state(fsm_pause, 0);
   set_state(fsm_end, 0);
   set_state(fsm_control, 0);
-  set_state(fsm_led1, 0);  
+  set_state(fsm_led1, 0);
+  set_state(fsm_led7, 0);  
 }
 
 void loop() 
@@ -481,11 +690,14 @@ void loop()
     
     // Do this only every "interval" miliseconds 
     // It helps to clear the switches bounce effect
-    /*unsigned long now = millis();
+    /*
+    unsigned long now = millis();
     if (now - last_cycle > interval) {
       loop_micros = micros();
       last_cycle = now;
-    */  
+      */
+      
+      
       // Read the inputs / inverse logic: buttom pressed equals zero
       prevs1 = s1;
       prevs2 = s2;
@@ -497,44 +709,41 @@ void loop()
       // Update tis for all state machines
       update_tis();
 
-      evolve_S1(fsm_s1);
-  //    evolve_S2(fsm_s2);
+      evolve_S1(fsm_s1, fsm_control);
+      evolve_S2(fsm_s2);
       evolve_config0(fsm_config0);
       evolve_config1(fsm_config1);
       evolve_config2(fsm_config2);
       evolve_config3(fsm_config3);
-      evolve_pc(fsm_pc);
+      evolve_pause(fsm_pause, fsm_control);
       evolve_end(fsm_end);
-      evolve_control(fsm_control);
-      evolve_led1(fsm_led1);
+      evolve_control(fsm_control, fsm_s1);
+      evolve_led1(fsm_led1, fsm_control);
+      evolve_led7(fsm_led7, fsm_config1);
       
 
       // Update the states
       set_state(fsm_s1, fsm_s1.new_state);
-    //  set_state(fsm_s2, fsm_s2.new_state);
+      set_state(fsm_s2, fsm_s2.new_state);
       set_state(fsm_config0, fsm_config0.new_state);
       set_state(fsm_config1, fsm_config1.new_state);
       set_state(fsm_config2, fsm_config2.new_state);
       set_state(fsm_config3, fsm_config3.new_state);
-      set_state(fsm_pc, fsm_pc.new_state);
+      set_state(fsm_pause, fsm_pause.new_state);
       set_state(fsm_end, fsm_end.new_state);
       set_state(fsm_control, fsm_control.new_state);
       set_state(fsm_led1,fsm_led1.new_state);
+      set_state(fsm_led7,fsm_led7.new_state);      
       
       //actions of the states
+      act_config0(fsm_config0);
       act_config1(fsm_config1);
+      act_config2(fsm_config2);
+      act_config3(fsm_config3);
+      act_pause(fsm_pause);
+      act_control(fsm_control);
       act_leds();
-
-/*
-      // Set the outputs
-      digitalWrite(LED1_pin, LED_1);
-      digitalWrite(LED2_pin, LED_2);
-      digitalWrite(LED3_pin, LED_3);
-      digitalWrite(LED4_pin, LED_4);
-      digitalWrite(LED5_pin, LED_5);
-      digitalWrite(LED6_pin, LED_6);
-      digitalWrite(LED7_pin, LED_7);
-
+    /*
       // Debug using the serial port
       // Print buttons
       Serial.print("S1: ");
@@ -547,16 +756,16 @@ void loop()
       Serial.print(fsm_s1.state);
       Serial.print(" fsm_s2.state: ");
       Serial.print(fsm_s2.state);
-      Serial.print(" fsm_config0.state: ");
-      Serial.print(fsm_config0.state);
+      Serial.print(" m: ");
+      Serial.print(m);
       Serial.print(" fsm_config1.state: ");
       Serial.print(fsm_config1.state);
       Serial.print(" fsm_config2.state: ");
       Serial.print(fsm_config2.state);
-      Serial.print(" fsm_config3.state: ");
-      Serial.print(fsm_config3.state);
-      Serial.print(" fsm_pc.state: ");
-      Serial.print(fsm_pc.state);
+      Serial.print(" end: ");
+      Serial.print(end);
+      Serial.print(" pause: ");
+      Serial.print(pause);
 
       // Print LEDs
       Serial.print(" LED_1: ");
@@ -576,5 +785,6 @@ void loop()
 
       // Print loop number
       Serial.print(" loop: ");
-      Serial.println(micros() - loop_micros);*/
-    }
+      Serial.println(micros() - loop_micros);
+    */   
+}
