@@ -25,8 +25,7 @@ unsigned long loop_micros;
 uint8_t var;
 
 // Set new state
-void set_state(fsm_t & fsm, int new_state)
-{
+void set_state(fsm_t & fsm, int new_state){
   if (fsm.state != new_state) {  // if the state changed tis is reset
     fsm.state = new_state;
     fsm.tes = millis();
@@ -39,8 +38,7 @@ void update_tis(){
   fsm_1.tis = cur_time - fsm_1.tes;
 }
 
-void setup() 
-{
+void setup(){
   pinMode(LED1_pin, OUTPUT);
   pinMode(S1_pin, INPUT);
 
@@ -53,12 +51,11 @@ void setup()
   set_state(fsm_1, 0);
 }
 
-void act(fsm_t&fsm, int var){
+void act(fsm_t & fsm, int var){
     // do something
 }
 
-void loop() 
-{
+void loop(){
     // To measure the time between loop() calls
     unsigned long last_loop_micros = loop_micros; 
     
@@ -68,8 +65,6 @@ void loop()
     if (now - last_cycle > interval) {
       loop_micros = micros();
       last_cycle = now;
-      
-      
       
       // Read the inputs / inverse logic: buttom pressed equals zero
       prev_button = button;
@@ -97,4 +92,5 @@ void loop()
       Serial.print(" loop: ");
       Serial.println(micros() - loop_micros);
     */   
+    }
 }
