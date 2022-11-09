@@ -1,6 +1,6 @@
-#### Line following robot project
+# Line following robot project
 
-to do:
+### To do:
 
-    1. Organize folder [x]
-    2. Make robot walk straight for a few seconds when button is pressed [ ]
+- [x] Organize folder
+- [x] Make robot walk straight for a few seconds when button is pressed
