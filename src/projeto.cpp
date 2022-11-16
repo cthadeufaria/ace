@@ -1,7 +1,11 @@
 #include <Arduino.h>
 
-#define LED1_pin 6
-#define S1_pin 2
+#define ledPin 6
+#define s1Pin 2
+#define sensor1Pin 9
+#define motor1Pin1 14
+#define motor1Pin2 15
+#define motor1Enable 15
 
 // structure to define finite state machine
 // tes - time entering state / tis - time in state
@@ -11,21 +15,21 @@ typedef struct {
 } fsm_t;
 
 // Input variables
-uint8_t button, prev_button;
+uint8_t s1, prevS1, sensor1;
 
 // Output variables
-uint8_t motor_1, motor_2;
+uint8_t motor1act1, motor1act2, motor1enable;
 
 // Our finite state machines
-fsm_t fsm_1;
+fsm_t fsm1;
 
 // Declaring main variables
 unsigned long interval, last_cycle;
 unsigned long loop_micros;
-uint8_t var;
+uint8_t var, speed1, speed2;
 
 // Set new state
-void set_state(fsm_t & fsm, int new_state){
+void setState(fsm_t & fsm, int new_state){
   if (fsm.state != new_state) {  // if the state changed tis is reset
     fsm.state = new_state;
     fsm.tes = millis();
@@ -33,14 +37,15 @@ void set_state(fsm_t & fsm, int new_state){
   }
 }
 
-void update_tis(){
+void updateTis(){
   unsigned long cur_time = millis();   // Just one call to millis()
-  fsm_1.tis = cur_time - fsm_1.tes;
+  fsm1.tis = cur_time - fsm1.tes;
 }
 
 void setup(){
-  pinMode(LED1_pin, OUTPUT);
-  pinMode(S1_pin, INPUT);
+  pinMode(ledPin, OUTPUT);
+  pinMode(s1Pin, INPUT);
+  pinMode(sensor1Pin, INPUT);
 
   // Start the serial port with 115200 baudrate
   Serial.begin(115200);
@@ -48,11 +53,19 @@ void setup(){
   // Start variables
   interval = 10;
   var = 0;
-  set_state(fsm_1, 0);
+  setState(fsm1, 0);
 }
 
-void act(fsm_t & fsm, int var){
-    // do something
+void actOnMotors(fsm_t & fsm, int var){
+  // Function to act on dc motors.
+  // speed must be an integer between 0 and 255
+  digitalWrite(motor1act1, speed1);
+  digitalWrite(motor1act2, speed2);
+  analogWrite(motor1enable, speed2);
+}
+
+void readInputs(){
+  sensor1 = analogRead(sensor1Pin);
 }
 
 void loop(){
@@ -67,19 +80,19 @@ void loop(){
       last_cycle = now;
       
       // Read the inputs / inverse logic: buttom pressed equals zero
-      prev_button = button;
-      button = digitalRead(S1_pin);
+      prevS1 = s1;
+      s1 = digitalRead(s1Pin);
 
       // FSM processing
 
       // Update tis for all state machines
-      update_tis();      
+      updateTis();      
 
       // Update the states
-      set_state(fsm_1, fsm_1.new_state);
+      setState(fsm1, fsm1.new_state);
 
       //actions of the states
-      act(fsm_1, 1);
+      actOnMotors(fsm1, 1);
     
       // DEBUGGING
     /*
