@@ -10,3 +10,8 @@
     - [] Write void to act on 2 motors at the same time
     - [] Test 2 motors at the same time
 - [] Test sensors input
+
+
+Class notes:
+    1. volatile int var => when var is present in interruprion and common functions
+    2. Measure distance with millis()

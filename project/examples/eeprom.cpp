@@ -1,5 +1,6 @@
 #include <Arduino.h>
-// #include <EEPROM.h>
+#include <EEPROM.h>
+// #include <avr/eeprom.h>
 
 #define LED1_pin 6
 #define LED2_pin 7
