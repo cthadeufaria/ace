@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cp .pio/build/pico/firmware.uf2 /media/carlos/RPI-RP2
+sudo chmod 666 /dev/ttyACM0
