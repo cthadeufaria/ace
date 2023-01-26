@@ -33,12 +33,14 @@ typedef struct {
 // Input variables
 uint8_t s1, prevS1;
 uint8_t s2, prevS2;
+uint8_t startPeriod = 8;
+uint8_t endPeriod = 19;
 
 // Output variables
 uint8_t LED_1, LED_2, LED_3, LED_4, LED_5, LED_6, LED_7;
 
 // Finite state machines
-fsm_t fsmAdjustDatetime, fsmControl, fsmS1, fsmS2;
+fsm_t fsmAdjustDatetime, fsmAdjustVariables, fsmControl, fsmSettings, fsmS1, fsmS2;
 
 unsigned long interval, last_cycle;
 unsigned long loop_micros;
@@ -59,6 +61,8 @@ void update_tis(){
   unsigned long cur_time = millis();   // Just one call to millis()
   fsmAdjustDatetime.tis = cur_time - fsmAdjustDatetime.tes;
   fsmControl.tis = cur_time - fsmControl.tes;
+  fsmSettings.tis = cur_time - fsmSettings.tes;
+  fsmAdjustVariables.tis = cur_time - fsmAdjustVariables.tes;
   fsmS1.tis = cur_time - fsmS1.tes;
   fsmS2.tis = cur_time - fsmS2.tes;
 }
@@ -119,6 +123,27 @@ void updateControl (fsm_t & fsm) {
       fsm.new_state = 3;
     }
     break;
+  case 3:
+    if (s2 < prevS2 && fsmS2.tis >= 3000) {
+      fsm.new_state = 0;
+    }
+    break;
+  }
+}
+
+void updateSettings (fsm_t & fsm) {
+  switch (fsm.state)
+  {
+  case 0:
+    if (s1 < prevS1 && fsmS1.tis >= 3000 && s2 < prevS2 && fsmS2.tis >= 3000) {
+      fsm.new_state = 1;
+    }
+    break;
+  case 1:
+    if (s1 < prevS1 && fsmS1.tis >= 3000 && s2 < prevS2 && fsmS2.tis >= 3000) {
+      fsm.new_state = 0;
+    }
+    break;
   }
 }
 
@@ -156,6 +181,21 @@ void updateAdjustDatetime(fsm_t & fsm, fsm_t & fsmControl){
         fsm.new_state = 6;
       }
       break;  
+    }
+  }
+}
+
+void adjustVariables (fsm_t & fsm) {
+  switch (fsm.state)
+  {
+  case 0:
+    if (s1 < prevS1) {
+      startPeriod += 1;
+    }
+    break;
+  case 1:
+    if (s1 < prevS1) {
+      endPeriod += 1;
     }
   }
 }
@@ -246,8 +286,10 @@ void loop()
 
     getCurrentDatetime();
 
-    if (fsmControl.state == 3) {
+    if (fsmControl.state == 3 && fsmSettings.state == 0) {
         adjustDatetime(fsmAdjustDatetime);
+    } else if (fsmControl.state == 3 && fsmSettings.state == 1) {
+        adjustVariables(fsmAdjustVariables);
     };
 
     // delay(5000); // wait 5 seconds
@@ -256,6 +298,7 @@ void loop()
 
     updateAdjustDatetime(fsmAdjustDatetime, fsmControl);
     updateControl(fsmControl);
+    updateSettings(fsmSettings);
 
     set_state(fsmS1, fsmS1.new_state);
     set_state(fsmS2, fsmS2.new_state);
@@ -282,9 +325,17 @@ void loop()
     Serial.print("prevS2: ");
     Serial.print(prevS2);
     Serial.println();
-    Serial.println();
     Serial.print("fsmAdjustDatetime.state: ");    
     Serial.print(fsmAdjustDatetime.state);
+    Serial.println();
+    Serial.print("fsmSettings.state: ");    
+    Serial.print(fsmSettings.state);
+    Serial.println();
+    Serial.print("fsmSettings.state: ");    
+    Serial.print(fsmSettings.state);
+    Serial.println();
+    Serial.print("fsmAdjustVariables.state: ");    
+    Serial.print(fsmAdjustVariables.state);
     Serial.println();
 
 }
