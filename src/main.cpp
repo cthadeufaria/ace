@@ -139,46 +139,60 @@ void updateControl (fsm_t & fsm) {
     if (s2 < prevS2) {
       fsm.new_state = 3;
     }
-  break;
+    break;
   case 3:
     if (fsm.tis >= 3000 && (fsm.tis - fsmS2.tis <= 10)) {
       fsm.new_state = 4;
     }
-    else if (fsm.tis - fsmS2.tis > 100) {
+    else if (fsm.tis - fsmS2.tis > 10) {
       fsm.new_state = 0;
     }
-  break;
+    break;
   case 4:
     if (s2 < prevS2) {
       fsm.new_state = 5;
     }
-  break;
+    break;
   case 5:
     if (fsm.tis >= 3000 && (fsm.tis - fsmS2.tis <= 10)) {
       fsm.new_state = 0;
     }
-    else if (fsm.tis - fsmS2.tis > 100) {
+    else if (fsm.tis - fsmS2.tis > 10) {
       fsm.new_state = 4;
     }
-  break;
+    break;
   }
 }
 
 void updateSettings (fsm_t & fsm) {
-  if (fsmControl.state == 4) {
-    switch (fsm.state)
-    {
-    case 0:
-      if (s1 < prevS1 && fsmS1.tis >= 3000) {
-        fsm.new_state = 1;
-      }
-      break;
-    case 1:
-      if (s1 < prevS1 && fsmS1.tis >= 3000) {
-        fsm.new_state = 0;
-      }
-      break;
+  switch (fsm.state)
+  {
+  case 0:
+    if (s1 < prevS1) {
+      fsm.new_state = 1;
     }
+    break;
+  case 1:
+    if (fsm.tis >= 3000 && (fsm.tis - fsmS1.tis <= 10)) {
+      fsm.new_state = 2;
+    }
+    else if (fsm.tis - fsmS1.tis > 10) {
+      fsm.new_state = 0;
+    }
+    break;
+  case 2:
+    if (s1 < prevS1) {
+      fsm.new_state = 3;
+    }
+    break;
+  case 3:
+    if (fsm.tis >= 3000 && (fsm.tis - fsmS1.tis <= 10)) {
+      fsm.new_state = 0;
+    }
+    else if (fsm.tis - fsmS1.tis > 10) {
+      fsm.new_state = 2;
+    }
+    break;
   }
 }
 
@@ -186,17 +200,17 @@ void updateAdjustDatetime(fsm_t & fsm){
   switch (fsm.state)
   {
   case 0:
-    if (s2 < prevS2) {
+    if (s2 > prevS2) {
       fsm.new_state = 1;
     }
     break;
   case 1:
-    if (s2 < prevS2) {
+    if (s2 > prevS2) {
       fsm.new_state = 2;
     }
     break;
   case 2:
-    if (s2 < prevS2) {
+    if (s2 > prevS2) {
       fsm.new_state = 3;
     }
     break;
@@ -246,6 +260,7 @@ void adjustVariables (fsm_t & fsm) {
     if (s1 < prevS1) {
       endPeriod += 1;
     }
+    break;
   }
 }
 
@@ -369,7 +384,7 @@ void loop()
         if (fsmSettings.state == 0) {
             adjustDatetime(fsmAdjustDatetime);
             updateAdjustDatetime(fsmAdjustDatetime);
-        } else if (fsmSettings.state == 1) {
+        } else if (fsmSettings.state == 2) {
             adjustVariables(fsmAdjustVariables);
             updateAdjustVariables(fsmAdjustVariables);
         }
