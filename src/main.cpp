@@ -352,17 +352,37 @@ void getI2C()
     delay(5000);
 }
 
+void debug() {
+  // DEBUGGING:
+  Serial.print("fsmControl.state: ");    
+  Serial.print(fsmControl.state);
+  Serial.println();
+  Serial.print("fsmS2.tis: ");    
+  Serial.print(fsmS2.tis);
+  Serial.println();
+  Serial.print("fsmControl.tis: ");    
+  Serial.print(fsmControl.tis);
+  Serial.println();
+  Serial.print("fsmAdjustDatetime.state: ");    
+  Serial.print(fsmAdjustDatetime.state);
+  Serial.println();
+  Serial.print("fsmSettings.state: ");    
+  Serial.print(fsmSettings.state);
+  Serial.println();
+  Serial.print("fsmAdjustVariables.state: ");    
+  Serial.print(fsmAdjustVariables.state);
+  Serial.println();
+  Serial.println();
+  Serial.println();
+}
+
 void loop()
 {
-    // Do this only every "interval" miliseconds 
-    // It helps to clear the switches bounce effect
-
     unsigned long now = millis();
     if (now - last_cycle > interval) {
       loop_micros = micros();
       last_cycle = now;
 
-      // Read the inputs / inverse logic: buttom pressed equals zero
       prevS1 = s1;
       prevS2 = s2;
       s1 = digitalRead(S1_pin);
@@ -396,27 +416,7 @@ void loop()
       set_state(fsmAdjustVariables, fsmAdjustVariables.new_state);
       set_state(fsmControl, fsmControl.new_state);
       set_state(fsmSettings, fsmSettings.new_state);
-      
-      // DEBUGGING:
-      Serial.print("fsmControl.state: ");    
-      Serial.print(fsmControl.state);
-      Serial.println();
-      Serial.print("fsmS2.tis: ");    
-      Serial.print(fsmS2.tis);
-      Serial.println();
-      Serial.print("fsmControl.tis: ");    
-      Serial.print(fsmControl.tis);
-      Serial.println();
-      Serial.print("fsmAdjustDatetime.state: ");    
-      Serial.print(fsmAdjustDatetime.state);
-      Serial.println();
-      Serial.print("fsmSettings.state: ");    
-      Serial.print(fsmSettings.state);
-      Serial.println();
-      Serial.print("fsmAdjustVariables.state: ");    
-      Serial.print(fsmAdjustVariables.state);
-      Serial.println();
-      Serial.println();
-      Serial.println();
+
+      debug();
   }
 }
