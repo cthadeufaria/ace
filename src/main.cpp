@@ -136,15 +136,31 @@ void updateControl (fsm_t & fsm) {
   switch (fsm.state)
   {
   case 0:
-    if (s2 < prevS2 && fsmS2.tis >= 3000) {
+    if (s2 < prevS2) {
+      fsm.new_state = 3;
+    }
+  break;
+  case 3:
+    if (fsm.tis >= 3000 && (fsm.tis - fsmS2.tis <= 30)) {
       fsm.new_state = 4;
     }
-    break;
-  case 4:
-    if (s2 < prevS2 && fsmS2.tis >= 3000) {
+    else if (fsm.tis - fsmS2.tis > 100) {
       fsm.new_state = 0;
     }
-    break;
+  break;
+  case 4:
+    if (s2 < prevS2) {
+      fsm.new_state = 5;
+    }
+  break;
+  case 5:
+    if (fsm.tis >= 3000 && (fsm.tis - fsmS2.tis <= 30)) {
+      fsm.new_state = 0;
+    }
+    else if (fsm.tis - fsmS2.tis > 100) {
+      fsm.new_state = 4;
+    }
+  break;
   }
 }
 
@@ -376,6 +392,9 @@ void loop()
       Serial.print("fsmS2.tis: ");    
       Serial.print(fsmS2.tis);
       Serial.println();
+      Serial.print("fsmControl.tis: ");    
+      Serial.print(fsmControl.tis);
+      Serial.println();
       Serial.print("fsmAdjustDatetime.state: ");    
       Serial.print(fsmAdjustDatetime.state);
       Serial.println();
@@ -384,8 +403,6 @@ void loop()
       Serial.println();
       Serial.print("fsmAdjustVariables.state: ");    
       Serial.print(fsmAdjustVariables.state);
-      Serial.println("n: ");
-      Serial.println(n);
       Serial.println();
       Serial.println();
       Serial.println();
