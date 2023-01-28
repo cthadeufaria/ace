@@ -22,9 +22,9 @@ char daysOfTheWeek[7][12] = {"Domingo", "Segunda", "Terça", "Quarta", "Quinta",
 
 #define S1_pin 2
 #define S2_pin 3
+
 // structure to define finite state machine
 // tes - time entering state / tis - time in state
-
 typedef struct {
   int state, new_state;
   unsigned long tes, tis;
@@ -44,6 +44,7 @@ fsm_t fsmAdjustDatetime, fsmAdjustVariables, fsmControl, fsmSettings, fsmS1, fsm
 
 unsigned long interval, last_cycle;
 unsigned long loop_micros;
+unsigned long n;
 unsigned long T,periodo_led, Tmod2, blink, lum;
 uint8_t pause, cs, S1_click, S2_click, S2_double, point;
 
@@ -71,21 +72,37 @@ void setup()
 {
     Wire.begin(); // Wire communication begin
     Wire.setClock(100000);
+
+    pinMode(S1_pin, INPUT);
+    pinMode(S2_pin, INPUT);
+
+    interval = 10;
+    n = 0;
+
     Serial.begin(9600); // The baudrate of Serial monitor is set in 9600
+
     while (!Serial); // Waiting for Serial Monitor
     Serial.println("\nI2C Scanner");
 
     if(! rtc.begin()) { // SE O RTC NÃO FOR INICIALIZADO, FAZ
-    Serial.println("DS3231 não encontrado"); //IMPRIME O TEXTO NO MONITOR SERIAL
-    while(1); //SEMPRE ENTRE NO LOOP
+      Serial.println("DS3231 não encontrado"); //IMPRIME O TEXTO NO MONITOR SERIAL
+      while(1); //SEMPRE ENTRE NO LOOP
+      }
+
+    if(rtc.lostPower() || rtc.begin()){ //SE RTC FOI LIGADO PELA PRIMEIRA VEZ / FICOU SEM ENERGIA / ESGOTOU A BATERIA, FAZ
+      Serial.println("DS3231 OK!"); //IMPRIME O TEXTO NO MONITOR SERIAL
+      rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); //CAPTURA A DATA E HORA EM QUE O SKETCH É COMPILADO
+      //rtc.adjust(DateTime(2018, 9, 29, 15, 00, 45)); //(ANO), (MÊS), (DIA), (HORA), (MINUTOS), (SEGUNDOS)
     }
-    if(rtc.lostPower()){ //SE RTC FOI LIGADO PELA PRIMEIRA VEZ / FICOU SEM ENERGIA / ESGOTOU A BATERIA, FAZ
-    Serial.println("DS3231 OK!"); //IMPRIME O TEXTO NO MONITOR SERIAL
-    //REMOVA O COMENTÁRIO DE UMA DAS LINHAS ABAIXO PARA INSERIR AS INFORMAÇÕES ATUALIZADAS EM SEU RTC
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); //CAPTURA A DATA E HORA EM QUE O SKETCH É COMPILADO
-    //rtc.adjust(DateTime(2018, 9, 29, 15, 00, 45)); //(ANO), (MÊS), (DIA), (HORA), (MINUTOS), (SEGUNDOS)
-    }
-    // delay(100); //INTERVALO DE 100 MILISSEGUNDOS
+
+    set_state(fsmS1, 1);
+    set_state(fsmS2, 1);
+    set_state(fsmAdjustDatetime, 0);
+    set_state(fsmControl, 0);
+    set_state(fsmSettings, 0);
+    set_state(fsmAdjustVariables, 0);
+
+    delay(100); //INTERVALO DE 100 MILISSEGUNDOS
 }
 
 void getCurrentDatetime(){
@@ -120,10 +137,10 @@ void updateControl (fsm_t & fsm) {
   {
   case 0:
     if (s2 < prevS2 && fsmS2.tis >= 3000) {
-      fsm.new_state = 3;
+      fsm.new_state = 4;
     }
     break;
-  case 3:
+  case 4:
     if (s2 < prevS2 && fsmS2.tis >= 3000) {
       fsm.new_state = 0;
     }
@@ -132,23 +149,25 @@ void updateControl (fsm_t & fsm) {
 }
 
 void updateSettings (fsm_t & fsm) {
-  switch (fsm.state)
-  {
-  case 0:
-    if (s1 < prevS1 && fsmS1.tis >= 3000 && s2 < prevS2 && fsmS2.tis >= 3000) {
-      fsm.new_state = 1;
+  if (fsmControl.state == 4) {
+    switch (fsm.state)
+    {
+    case 0:
+      if (s1 < prevS1 && fsmS1.tis >= 3000) {
+        fsm.new_state = 1;
+      }
+      break;
+    case 1:
+      if (s1 < prevS1 && fsmS1.tis >= 3000) {
+        fsm.new_state = 0;
+      }
+      break;
     }
-    break;
-  case 1:
-    if (s1 < prevS1 && fsmS1.tis >= 3000 && s2 < prevS2 && fsmS2.tis >= 3000) {
-      fsm.new_state = 0;
-    }
-    break;
   }
 }
 
 void updateAdjustDatetime(fsm_t & fsm, fsm_t & fsmControl){
-  if (fsmControl.state == 3) {
+  if (fsmControl.state == 4 && fsmSettings.state == 0) {
     switch (fsm.state)
     {
     case 0:
@@ -181,6 +200,24 @@ void updateAdjustDatetime(fsm_t & fsm, fsm_t & fsmControl){
         fsm.new_state = 6;
       }
       break;  
+    }
+  }
+}
+
+void updateAdjustVariables(fsm_t & fsm) {
+  if (fsmControl.state == 4 && fsmSettings.state == 1) {
+    switch (fsm.state)
+    {
+    case 0:
+      if (s2 < prevS2) {
+        fsm.new_state = 1;
+      }
+      break;
+    case 1:
+      if (s2 < prevS2) {
+        fsm.new_state = 0;
+      }
+      break;
     }
   }
 }
@@ -246,20 +283,15 @@ void adjustDatetime(fsm_t & fsm){
     rtc.adjust(DateTime(ano, mes, dia, hora, minuto, segundo));
 }
 
-void loop()
+void getI2C() 
 {
     byte error, address; //variable for error and I2C address
     int nDevices;
 
+    nDevices = 0;
+
     Serial.println("Scanning...");
 
-    // Read the inputs / inverse logic: buttom pressed equals zero
-    prevS1 = s1;
-    prevS2 = s2;
-    s1 = digitalRead(S1_pin);
-    s2 = digitalRead(S2_pin);
-
-    nDevices = 0;
     for (address = 1; address < 127; address++ )
     {
     // The i2c_scanner uses the return value of
@@ -290,58 +322,72 @@ void loop()
     else
     Serial.println("done\n");
 
-    getCurrentDatetime();
+    delay(5000);
+}
 
-    if (fsmControl.state == 3 && fsmSettings.state == 0) {
-        adjustDatetime(fsmAdjustDatetime);
-    } else if (fsmControl.state == 3 && fsmSettings.state == 1) {
-        adjustVariables(fsmAdjustVariables);
-    };
+void loop()
+{
+    // Do this only every "interval" miliseconds 
+    // It helps to clear the switches bounce effect
 
-    // delay(5000); // wait 5 seconds
+    unsigned long now = millis();
+    if (now - last_cycle > interval) {
+      loop_micros = micros();
+      last_cycle = now;
 
-    update_tis();
+      // Read the inputs / inverse logic: buttom pressed equals zero
+      prevS1 = s1;
+      prevS2 = s2;
+      s1 = digitalRead(S1_pin);
+      s2 = digitalRead(S2_pin);
 
-    updateAdjustDatetime(fsmAdjustDatetime, fsmControl);
-    updateControl(fsmControl);
-    updateSettings(fsmSettings);
+      update_tis();
 
-    set_state(fsmS1, fsmS1.new_state);
-    set_state(fsmS2, fsmS2.new_state);
-    set_state(fsmAdjustDatetime, fsmAdjustDatetime.new_state);
-    set_state(fsmControl, fsmControl.new_state);
+      updateAdjustDatetime(fsmAdjustDatetime, fsmControl);
+      updateControl(fsmControl);
+      updateSettings(fsmSettings);
+      updateAdjustVariables(fsmAdjustVariables);
 
+      set_state(fsmS1, s1);
+      set_state(fsmS2, s2);
+      set_state(fsmAdjustDatetime, fsmAdjustDatetime.new_state);
+      set_state(fsmAdjustVariables, fsmAdjustVariables.new_state);
+      set_state(fsmControl, fsmControl.new_state);
+      set_state(fsmSettings, fsmSettings.new_state);
 
-    // DEBUGGING:
-    Serial.print("fsmControl.state: ");    
-    Serial.print(fsmControl.state);
-    Serial.println();
-    Serial.print("fsmControl.new_state: ");    
-    Serial.print(fsmControl.new_state);
-    Serial.println();
-    Serial.print("s1: ");
-    Serial.print(s1);
-    Serial.println();
-    Serial.print("s2: ");
-    Serial.print(s2);
-    Serial.println();
-    Serial.print("prevS1: ");
-    Serial.print(prevS1);
-    Serial.println();
-    Serial.print("prevS2: ");
-    Serial.print(prevS2);
-    Serial.println();
-    Serial.print("fsmAdjustDatetime.state: ");    
-    Serial.print(fsmAdjustDatetime.state);
-    Serial.println();
-    Serial.print("fsmSettings.state: ");    
-    Serial.print(fsmSettings.state);
-    Serial.println();
-    Serial.print("fsmSettings.state: ");    
-    Serial.print(fsmSettings.state);
-    Serial.println();
-    Serial.print("fsmAdjustVariables.state: ");    
-    Serial.print(fsmAdjustVariables.state);
-    Serial.println();
+      if(n == 0) 
+      {
+        getI2C();
+        n += 1;
+      } 
 
+      getCurrentDatetime();
+
+      if (fsmControl.state == 4 && fsmSettings.state == 0) {
+          adjustDatetime(fsmAdjustDatetime);
+      } else if (fsmControl.state == 4 && fsmSettings.state == 1) {
+          adjustVariables(fsmAdjustVariables);
+      };
+      
+      // DEBUGGING:
+      Serial.print("fsmControl.state: ");    
+      Serial.print(fsmControl.state);
+      Serial.println();
+      Serial.print("fsmS2.tis: ");    
+      Serial.print(fsmS2.tis);
+      Serial.println();
+      Serial.print("fsmAdjustDatetime.state: ");    
+      Serial.print(fsmAdjustDatetime.state);
+      Serial.println();
+      Serial.print("fsmSettings.state: ");    
+      Serial.print(fsmSettings.state);
+      Serial.println();
+      Serial.print("fsmAdjustVariables.state: ");    
+      Serial.print(fsmAdjustVariables.state);
+      Serial.println("n: ");
+      Serial.println(n);
+      Serial.println();
+      Serial.println();
+      Serial.println();
+  }
 }
