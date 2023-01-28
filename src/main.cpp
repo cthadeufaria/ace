@@ -215,26 +215,32 @@ void adjustDatetime(fsm_t & fsm){
       if (s1 < prevS1) {
         ano += 1;
       }
+      break;
     case 1:
       if (s1 < prevS1) {
         mes += 1;
       }
+      break;
     case 2:
       if (s1 < prevS1) {
         dia += 1;
       }
+      break;
     case 3:
       if (s1 < prevS1) {
         hora += 1;
       }
+      break;
     case 4:
       if (s1 < prevS1) {
         minuto += 1;
       }
+      break;
     case 5:
       if (s1 < prevS1) {
         segundo += 1;
       }
+      break;
     }
 
     rtc.adjust(DateTime(ano, mes, dia, hora, minuto, segundo));
