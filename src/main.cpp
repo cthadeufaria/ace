@@ -2,6 +2,7 @@
 #include "RTClib.h"
 #include <Arduino.h>
 #include <SPI.h>
+// #include <timespan.h>
 // #include <avr/io.h>
 // #include <util/delay.h>
 // #include "timer_tools.h"
@@ -11,13 +12,13 @@ RTC_DS3231 rtc;
 
 char daysOfTheWeek[7][12] = {"Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"};
 
-#define LED1_pin 6
-#define LED2_pin 7
-#define LED3_pin 8
-#define LED4_pin 9
-#define LED5_pin 10
-#define LED6_pin 11
-#define LED7_pin 12
+// #define LED1_pin 6
+// #define LED2_pin 7
+// #define LED3_pin 8
+// #define LED4_pin 9
+// #define LED5_pin 10
+// #define LED6_pin 11
+// #define LED7_pin 12
 
 #define S1_pin 2
 #define S2_pin 3
@@ -40,10 +41,8 @@ uint8_t LED_1, LED_2, LED_3, LED_4, LED_5, LED_6, LED_7;
 // Finite state machines
 fsm_t fsmAdjustDatetime, fsmAdjustVariables, fsmControl, fsmSettings, fsmS1, fsmS2;
 
-unsigned long interval, last_cycle;
-unsigned long loop_micros;
-unsigned long T,periodo_led, Tmod2, blink, lum;
-uint8_t pause, cs, S1_click, S2_click, S2_double, point;
+// variables
+unsigned long interval, last_cycle, loop_micros;
 
 void set_state(fsm_t & fsm, int new_state)
 {
@@ -97,28 +96,28 @@ void getI2C()
       Wire.beginTransmission(address);
       error = Wire.endTransmission();
 
-      if (error == 0)
-      {
-          Serial.print("I2C device found at address 0x");
-          if (address < 16)
-          Serial.print("0");
-          Serial.print(address, HEX);
-          Serial.println("  !");
-          nDevices++;
+      if (error == 0) {
+        Serial.print("I2C device found at address 0x");
+        if (address < 16)
+        Serial.print("0");
+        Serial.print(address, HEX);
+        Serial.println("  !");
+        nDevices++;
       }
-      else if (error == 4)
-      {
-          Serial.print("Unknown error at address 0x");
-          if (address < 16)
-          Serial.print("0");
-          Serial.println(address, HEX);
+      else if (error == 4) {
+        Serial.print("Unknown error at address 0x");
+        if (address < 16)
+        Serial.print("0");
+        Serial.println(address, HEX);
       }
     }
 
-    if (nDevices == 0)
-    Serial.println("No I2C devices found\n");
-    else
-    Serial.println("done\n");
+    if (nDevices == 0) {
+      Serial.println("No I2C devices found\n");
+    }
+    else {
+      Serial.println("done\n");
+    }
 
     delay(2500);
 }
@@ -292,49 +291,57 @@ void updateAdjustVariables(fsm_t & fsm) {
 }
 
 void adjustDatetime(fsm_t & fsm) {
+    int dia=0, hora=0, minuto=0, segundo=0, operation=1; 
+    TimeSpan ts;
+    DateTime dt;
     DateTime now = rtc.now();
-    int dia = now.day();
-    int mes = now.month();
-    int ano = now.year();
-    int hora = now.hour();
-    int minuto = now.minute();
-    int segundo = now.second();
-
+    
     switch (fsm.state)
     {
     case 0:
       if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
-        ano += 1;
+        dia = 365;
       }
       break;
     case 1:
       if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
-        mes += 1;
+        dia = 30;
       }
       break;
     case 2:
       if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
-        dia += 1;
+        dia = 1;
       }
       break;
     case 3:
       if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
-        hora += 1;
+        hora = 1;
       }
       break;
     case 4:
       if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
-        minuto += 1;
+        minuto = 1;
       }
       break;
     case 5:
       if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
-        segundo += 1;
+        segundo = 1;
       }
       break;
     }
 
-    rtc.adjust(DateTime(ano, mes, dia, hora, minuto, segundo));
+    if (fsmSettings.new_state == 0 && fsmSettings.state == 1 && fsmSettings.tis >= 500) {
+      operation = -1;
+    }
+
+    ts = TimeSpan(dia, hora, minuto, segundo);
+    if (operation == 1) {
+      dt = now + ts;
+    }
+    else if (operation == -1) {
+      dt = now - ts;
+    }
+    rtc.adjust(dt);
 }
 
 void adjustVariables (fsm_t & fsm) {
