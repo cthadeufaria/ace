@@ -196,37 +196,37 @@ void updateSettings (fsm_t & fsm) {
   }
 }
 
-void updateAdjustDatetime(fsm_t & fsm){
+void updateAdjustDatetime(fsm_t & fsm) {
   switch (fsm.state)
   {
   case 0:
-    if (s2 > prevS2) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
       fsm.new_state = 1;
     }
     break;
   case 1:
-    if (s2 > prevS2) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
       fsm.new_state = 2;
     }
     break;
   case 2:
-    if (s2 > prevS2) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
       fsm.new_state = 3;
     }
     break;
   case 3:
-    if (s2 < prevS2) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
       fsm.new_state = 4;
     }
     break;
   case 4:
-    if (s2 < prevS2) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
       fsm.new_state = 5;
     }
     break;
   case 5:
-    if (s2 < prevS2) {
-      fsm.new_state = 6;
+    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
+      fsm.new_state = 0;
     }
     break;  
   }
@@ -236,29 +236,13 @@ void updateAdjustVariables(fsm_t & fsm) {
   switch (fsm.state)
   {
   case 0:
-    if (s2 < prevS2) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
       fsm.new_state = 1;
     }
     break;
   case 1:
-    if (s2 < prevS2) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
       fsm.new_state = 0;
-    }
-    break;
-  }
-}
-
-void adjustVariables (fsm_t & fsm) {
-  switch (fsm.state)
-  {
-  case 0:
-    if (s1 < prevS1) {
-      startPeriod += 1;
-    }
-    break;
-  case 1:
-    if (s1 < prevS1) {
-      endPeriod += 1;
     }
     break;
   }
@@ -276,38 +260,54 @@ void adjustDatetime(fsm_t & fsm){
     switch (fsm.state)
     {
     case 0:
-      if (s1 < prevS1) {
+      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
         ano += 1;
       }
       break;
     case 1:
-      if (s1 < prevS1) {
+      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
         mes += 1;
       }
       break;
     case 2:
-      if (s1 < prevS1) {
+      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
         dia += 1;
       }
       break;
     case 3:
-      if (s1 < prevS1) {
+      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
         hora += 1;
       }
       break;
     case 4:
-      if (s1 < prevS1) {
+      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
         minuto += 1;
       }
       break;
     case 5:
-      if (s1 < prevS1) {
+      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
         segundo += 1;
       }
       break;
     }
 
     rtc.adjust(DateTime(ano, mes, dia, hora, minuto, segundo));
+}
+
+void adjustVariables (fsm_t & fsm) {
+  switch (fsm.state)
+  {
+  case 0:
+    if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
+      startPeriod += 1;
+    }
+    break;
+  case 1:
+    if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
+      endPeriod += 1;
+    }
+    break;
+  }
 }
 
 void getI2C() 
@@ -354,6 +354,12 @@ void getI2C()
 
 void debug() {
   // DEBUGGING:
+  Serial.print("startPeriod: ");    
+  Serial.print(startPeriod);
+  Serial.println();
+  Serial.print("startPeriod: ");    
+  Serial.print(endPeriod);
+  Serial.println();
   Serial.print("fsmControl.state: ");    
   Serial.print(fsmControl.state);
   Serial.println();
@@ -399,12 +405,12 @@ void loop()
 
       updateControl(fsmControl);
 
-      if (fsmControl.state == 4) {
+      if (fsmControl.state == 4 || fsmControl.state == 5) {
         updateSettings(fsmSettings);
-        if (fsmSettings.state == 0) {
+        if (fsmSettings.state == 0 || fsmSettings.state == 1) {
             adjustDatetime(fsmAdjustDatetime);
             updateAdjustDatetime(fsmAdjustDatetime);
-        } else if (fsmSettings.state == 2) {
+        } else if (fsmSettings.state == 2 || fsmSettings.state == 3) {
             adjustVariables(fsmAdjustVariables);
             updateAdjustVariables(fsmAdjustVariables);
         }
