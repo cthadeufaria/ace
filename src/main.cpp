@@ -7,9 +7,8 @@
 // #include "timer_tools.h"
 // // #include "printf_tools.h"
 
-RTC_DS3231 rtc; //OBJETO DO TIPO RTC_DS3231
+RTC_DS3231 rtc;
 
-//DECLARAÇÃO DOS DIAS DA SEMANA
 char daysOfTheWeek[7][12] = {"Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"};
 
 #define LED1_pin 6
@@ -23,20 +22,19 @@ char daysOfTheWeek[7][12] = {"Domingo", "Segunda", "Terça", "Quarta", "Quinta",
 #define S1_pin 2
 #define S2_pin 3
 
-// structure to define finite state machine
 // tes - time entering state / tis - time in state
 typedef struct {
   int state, new_state;
   unsigned long tes, tis;
 } fsm_t;
 
-// Input variables
+// input
 uint8_t s1, prevS1;
 uint8_t s2, prevS2;
 uint8_t startPeriod = 8;
 uint8_t endPeriod = 19;
 
-// Output variables
+// output
 uint8_t LED_1, LED_2, LED_3, LED_4, LED_5, LED_6, LED_7;
 
 // Finite state machines
@@ -44,11 +42,9 @@ fsm_t fsmAdjustDatetime, fsmAdjustVariables, fsmControl, fsmSettings, fsmS1, fsm
 
 unsigned long interval, last_cycle;
 unsigned long loop_micros;
-unsigned long n;
 unsigned long T,periodo_led, Tmod2, blink, lum;
 uint8_t pause, cs, S1_click, S2_click, S2_double, point;
 
-// Set new state
 void set_state(fsm_t & fsm, int new_state)
 {
   if (fsm.state != new_state) {  // if the state changed tis is reset
@@ -68,45 +64,92 @@ void update_tis(){
   fsmS2.tis = cur_time - fsmS2.tes;
 }
 
-void setup()
-{
-    Wire.begin(); // Wire communication begin
-    Wire.setClock(100000);
-
-    pinMode(S1_pin, INPUT);
-    pinMode(S2_pin, INPUT);
-
-    interval = 10;
-    n = 0;
-
-    Serial.begin(9600); // The baudrate of Serial monitor is set in 9600
-
-    while (!Serial); // Waiting for Serial Monitor
-    Serial.println("\nI2C Scanner");
-
-    if(! rtc.begin()) { // SE O RTC NÃO FOR INICIALIZADO, FAZ
-      Serial.println("DS3231 não encontrado"); //IMPRIME O TEXTO NO MONITOR SERIAL
-      while(1); //SEMPRE ENTRE NO LOOP
-      }
-
-    if(rtc.lostPower() || rtc.begin()){ //SE RTC FOI LIGADO PELA PRIMEIRA VEZ / FICOU SEM ENERGIA / ESGOTOU A BATERIA, FAZ
-      Serial.println("DS3231 OK!"); //IMPRIME O TEXTO NO MONITOR SERIAL
-      rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); //CAPTURA A DATA E HORA EM QUE O SKETCH É COMPILADO
-      //rtc.adjust(DateTime(2018, 9, 29, 15, 00, 45)); //(ANO), (MÊS), (DIA), (HORA), (MINUTOS), (SEGUNDOS)
+void getRTC() {
+  if(! rtc.begin()) {
+    Serial.println("DS3231 não encontrado");
+    while(1);
     }
 
-    set_state(fsmS1, 1);
-    set_state(fsmS2, 1);
-    set_state(fsmAdjustDatetime, 0);
-    set_state(fsmControl, 0);
-    set_state(fsmSettings, 0);
-    set_state(fsmAdjustVariables, 0);
+  if(rtc.lostPower() || rtc.begin()){
+    Serial.println("DS3231 OK!");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+  delay(2500);
+}
 
-    delay(100); //INTERVALO DE 100 MILISSEGUNDOS
+void getI2C() 
+{
+    byte error, address;
+    int nDevices;
+
+    nDevices = 0;
+
+    while (!Serial) {
+      Serial.println("\nI2C Scanner");
+    }
+
+    Serial.println("Scanning...");
+
+    for (address = 1; address < 127; address++ ) {
+      // The i2c_scanner uses the return value of
+      // the Write.endTransmisstion to see if
+      // a device did acknowledge to the address.
+      Wire.beginTransmission(address);
+      error = Wire.endTransmission();
+
+      if (error == 0)
+      {
+          Serial.print("I2C device found at address 0x");
+          if (address < 16)
+          Serial.print("0");
+          Serial.print(address, HEX);
+          Serial.println("  !");
+          nDevices++;
+      }
+      else if (error == 4)
+      {
+          Serial.print("Unknown error at address 0x");
+          if (address < 16)
+          Serial.print("0");
+          Serial.println(address, HEX);
+      }
+    }
+
+    if (nDevices == 0)
+    Serial.println("No I2C devices found\n");
+    else
+    Serial.println("done\n");
+
+    delay(2500);
+}
+
+void setup()
+{
+  Wire.begin();
+  Wire.setClock(100000);
+
+  pinMode(S1_pin, INPUT);
+  pinMode(S2_pin, INPUT);
+
+  interval = 10;
+
+  Serial.begin(9600);
+
+  getI2C();
+  getRTC();
+
+  set_state(fsmS1, 1);
+  set_state(fsmS2, 1);
+  set_state(fsmAdjustDatetime, 0);
+  set_state(fsmControl, 0);
+  set_state(fsmSettings, 0);
+  set_state(fsmAdjustVariables, 0);
+
+  delay(100);
 }
 
 void getCurrentDatetime(){
-    DateTime now = rtc.now(); //CHAMADA DE FUNÇÃO
+    DateTime now = rtc.now();
     int dia = now.day();
     int mes = now.month();
     int ano = now.year();
@@ -115,21 +158,21 @@ void getCurrentDatetime(){
     int minuto = now.minute();
     int segundo = now.second();
 
-    Serial.print("Data: "); //IMPRIME O TEXTO NO MONITOR SERIAL
-    Serial.print(dia, DEC); //IMPRIME NO MONITOR SERIAL O DIA
-    Serial.print('/'); //IMPRIME O CARACTERE NO MONITOR SERIAL
-    Serial.print(mes, DEC); //IMPRIME NO MONITOR SERIAL O MÊS
-    Serial.print('/'); //IMPRIME O CARACTERE NO MONITOR SERIAL
-    Serial.print(ano, DEC); //IMPRIME NO MONITOR SERIAL O ANO
-    Serial.print(" / Dia: "); //IMPRIME O TEXTO NA SERIAL
-    Serial.print(daysOfTheWeek[diaDaSemana]); //IMPRIME NO MONITOR SERIAL O DIA
-    Serial.print(" / Horas: "); //IMPRIME O TEXTO NA SERIAL
-    Serial.print(hora, DEC); //IMPRIME NO MONITOR SERIAL A HORA
-    Serial.print(':'); //IMPRIME O CARACTERE NO MONITOR SERIAL
-    Serial.print(minuto, DEC); //IMPRIME NO MONITOR SERIAL OS MINUTOS
-    Serial.print(':'); //IMPRIME O CARACTERE NO MONITOR SERIAL
-    Serial.print(segundo, DEC); //IMPRIME NO MONITOR SERIAL OS SEGUNDOS
-    Serial.println(); //QUEBRA DE LINHA NA SERIAL
+    Serial.print("Data: ");
+    Serial.print(dia, DEC); 
+    Serial.print('/');
+    Serial.print(mes, DEC);
+    Serial.print('/');
+    Serial.print(ano, DEC);
+    Serial.print(" / Dia: ");
+    Serial.print(daysOfTheWeek[diaDaSemana]);
+    Serial.print(" / Horas: ");
+    Serial.print(hora, DEC);
+    Serial.print(':');
+    Serial.print(minuto, DEC);
+    Serial.print(':');
+    Serial.print(segundo, DEC);
+    Serial.println();
 }
 
 void updateControl (fsm_t & fsm) {
@@ -248,7 +291,7 @@ void updateAdjustVariables(fsm_t & fsm) {
   }
 }
 
-void adjustDatetime(fsm_t & fsm){
+void adjustDatetime(fsm_t & fsm) {
     DateTime now = rtc.now();
     int dia = now.day();
     int mes = now.month();
@@ -300,56 +343,20 @@ void adjustVariables (fsm_t & fsm) {
   case 0:
     if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
       startPeriod += 1;
+      if (startPeriod >= 24) {
+        startPeriod = 0;
+      } 
     }
     break;
   case 1:
     if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
       endPeriod += 1;
+      if (endPeriod >= 24) {
+        endPeriod = 0;
+      } 
     }
     break;
   }
-}
-
-void getI2C() 
-{
-    byte error, address; //variable for error and I2C address
-    int nDevices;
-
-    nDevices = 0;
-
-    Serial.println("Scanning...");
-
-    for (address = 1; address < 127; address++ )
-    {
-    // The i2c_scanner uses the return value of
-    // the Write.endTransmisstion to see if
-    // a device did acknowledge to the address.
-    Wire.beginTransmission(address);
-    error = Wire.endTransmission();
-
-    if (error == 0)
-    {
-        Serial.print("I2C device found at address 0x");
-        if (address < 16)
-        Serial.print("0");
-        Serial.print(address, HEX);
-        Serial.println("  !");
-        nDevices++;
-    }
-    else if (error == 4)
-    {
-        Serial.print("Unknown error at address 0x");
-        if (address < 16)
-        Serial.print("0");
-        Serial.println(address, HEX);
-    }
-    }
-    if (nDevices == 0)
-    Serial.println("No I2C devices found\n");
-    else
-    Serial.println("done\n");
-
-    delay(5000);
 }
 
 void debug() {
@@ -395,11 +402,6 @@ void loop()
       s2 = digitalRead(S2_pin);
 
       update_tis();
-
-      if(n == 0) {
-        getI2C();
-        n += 1;
-      } 
 
       getCurrentDatetime();
 
