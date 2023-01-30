@@ -5,16 +5,18 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#define S1_pin 2
-#define S2_pin 3
+#define S1_pin 6
+#define S2_pin 7
+// #define S3_pin 8
+// #define S4_pin 9
 
 #define SCREEN_WIDTH 128 
 #define SCREEN_HEIGHT 32
-
-#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+#define OLED_RESET -1
 
 RTC_DS3231 rtc;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+DateTime date;
 
 char daysOfTheWeek[7][12] = {"Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"};
 
@@ -124,17 +126,45 @@ void getI2C()
 void setupOLED() {
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
     Serial.println(F("SSD1306 allocation failed"));
-    for(;;);
+    // for(;;);
   }
-  
-  delay(2000);
+  else if (display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    delay(2000);
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(0, 10);
+    // Display static text
+
+    display.println("SSD1306_SWITCHCAPVCC OLED DISPLAY SET");
+
+    display.display(); 
+  }
+}
+
+void actOLED(DateTime &d, int c, int l) {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(0, 10);
+  display.setCursor(c, l);
+
   // Display static text
-  display.println("Hello, world!");
-  display.display(); 
+  display.print(d.day(), DEC); 
+  display.print('/');
+  display.print(d.month(), DEC);
+  display.print('/');
+  display.print(d.year(), DEC);
+  display.print(" / Dia: ");
+  display.print(daysOfTheWeek[d.dayOfTheWeek()]);
+  display.print(" / Horas: ");
+  display.print(d.hour(), DEC);
+  display.print(':');
+  display.print(d.minute(), DEC);
+  display.print(':');
+  display.print(d.second(), DEC);
+  display.println();
+  
+  display.display();
 }
 
 void setup()
@@ -163,8 +193,8 @@ void setup()
   delay(10000);
 }
 
-void getCurrentDatetime(){
-    DateTime now = rtc.now();
+void getCurrentDatetime(DateTime &now){
+    now = rtc.now();
     int dia = now.day();
     int mes = now.month();
     int ano = now.year();
@@ -173,7 +203,6 @@ void getCurrentDatetime(){
     int minuto = now.minute();
     int segundo = now.second();
 
-    Serial.print("Data: ");
     Serial.print(dia, DEC); 
     Serial.print('/');
     Serial.print(mes, DEC);
@@ -420,7 +449,7 @@ void loop()
 
       update_tis();
 
-      getCurrentDatetime();
+      getCurrentDatetime(date);
 
       updateControl(fsmControl);
 
@@ -435,7 +464,7 @@ void loop()
         }
       }
 
-      // actOLED();
+      actOLED(date, 0, 0);
 
       set_state(fsmS1, s1);
       set_state(fsmS2, s2);

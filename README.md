@@ -8,4 +8,4 @@
 1. fix adjustVariables logic for not surpassing 23h [X]
 1. implement main logic for defining automatic/manual periods []
 1. implement curtains action functions and logic []
-1. implement LCD view with I2C protocol []
+1. implement LCD view with I2C protocol [X]
