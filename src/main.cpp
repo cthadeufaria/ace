@@ -2,26 +2,21 @@
 #include "RTClib.h"
 #include <Arduino.h>
 #include <SPI.h>
-// #include <timespan.h>
-// #include <avr/io.h>
-// #include <util/delay.h>
-// #include "timer_tools.h"
-// // #include "printf_tools.h"
-
-RTC_DS3231 rtc;
-
-char daysOfTheWeek[7][12] = {"Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"};
-
-// #define LED1_pin 6
-// #define LED2_pin 7
-// #define LED3_pin 8
-// #define LED4_pin 9
-// #define LED5_pin 10
-// #define LED6_pin 11
-// #define LED7_pin 12
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 #define S1_pin 2
 #define S2_pin 3
+
+#define SCREEN_WIDTH 128 
+#define SCREEN_HEIGHT 32
+
+#define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+
+RTC_DS3231 rtc;
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+char daysOfTheWeek[7][12] = {"Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"};
 
 // tes - time entering state / tis - time in state
 typedef struct {
@@ -66,10 +61,10 @@ void update_tis(){
 void getRTC() {
   if(! rtc.begin()) {
     Serial.println("DS3231 não encontrado");
-    while(1);
+    // while(1);
     }
 
-  if(rtc.lostPower() || rtc.begin()){
+  if(rtc.begin()){
     Serial.println("DS3231 OK!");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
@@ -101,7 +96,8 @@ void getI2C()
         if (address < 16)
         Serial.print("0");
         Serial.print(address, HEX);
-        Serial.println("  !");
+        Serial.print("   ");
+        Serial.println(address, DEC);
         nDevices++;
       }
       else if (error == 4) {
@@ -116,16 +112,35 @@ void getI2C()
       Serial.println("No I2C devices found\n");
     }
     else {
-      Serial.println("done\n");
+      Serial.println("done");
+      Serial.print ("Found ");
+      Serial.print (nDevices, DEC);
+      Serial.println (" device(s).");
     }
 
     delay(2500);
 }
 
+void setupOLED() {
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;);
+  }
+  
+  delay(2000);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(0, 10);
+  // Display static text
+  display.println("Hello, world!");
+  display.display(); 
+}
+
 void setup()
 {
   Wire.begin();
-  Wire.setClock(100000);
+  Wire.setClock(100000);     
 
   pinMode(S1_pin, INPUT);
   pinMode(S2_pin, INPUT);
@@ -136,6 +151,7 @@ void setup()
 
   getI2C();
   getRTC();
+  setupOLED();
 
   set_state(fsmS1, 1);
   set_state(fsmS2, 1);
@@ -144,7 +160,7 @@ void setup()
   set_state(fsmSettings, 0);
   set_state(fsmAdjustVariables, 0);
 
-  delay(100);
+  delay(10000);
 }
 
 void getCurrentDatetime(){
@@ -374,23 +390,17 @@ void debug() {
   Serial.print("startPeriod: ");    
   Serial.print(endPeriod);
   Serial.println();
+  Serial.print("Serial.available(): ");    
+  Serial.print(Serial.available());
+  Serial.println();
   Serial.print("fsmControl.state: ");    
   Serial.print(fsmControl.state);
-  Serial.println();
-  Serial.print("fsmS2.tis: ");    
-  Serial.print(fsmS2.tis);
-  Serial.println();
-  Serial.print("fsmControl.tis: ");    
-  Serial.print(fsmControl.tis);
-  Serial.println();
-  Serial.print("fsmAdjustDatetime.state: ");    
-  Serial.print(fsmAdjustDatetime.state);
   Serial.println();
   Serial.print("fsmSettings.state: ");    
   Serial.print(fsmSettings.state);
   Serial.println();
-  Serial.print("fsmAdjustVariables.state: ");    
-  Serial.print(fsmAdjustVariables.state);
+  Serial.print("fsmAdjustDatetime.state: ");    
+  Serial.print(fsmAdjustDatetime.state);
   Serial.println();
   Serial.println();
   Serial.println();
@@ -424,6 +434,8 @@ void loop()
             updateAdjustVariables(fsmAdjustVariables);
         }
       }
+
+      // actOLED();
 
       set_state(fsmS1, s1);
       set_state(fsmS2, s2);
