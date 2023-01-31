@@ -9,3 +9,6 @@
 1. implement main logic for defining automatic/manual periods []
 1. implement curtains action functions and logic []
 1. implement LCD view with I2C protocol [X]
+1. define conditions to each print in display and adjust actOLED function accordingly [X]
+2. adapt variables to: open and close time [X]
+1. create and adapt logic to variables: start of auto period; end of auto period [X] 

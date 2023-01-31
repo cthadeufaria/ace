@@ -18,7 +18,7 @@ RTC_DS3231 rtc;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 DateTime date;
 
-char daysOfTheWeek[7][12] = {"Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"};
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
 
 // tes - time entering state / tis - time in state
 typedef struct {
@@ -27,10 +27,9 @@ typedef struct {
 } fsm_t;
 
 // input
-uint8_t s1, prevS1;
-uint8_t s2, prevS2;
-uint8_t startPeriod = 8;
-uint8_t endPeriod = 19;
+uint8_t s1, prevS1, s2, prevS2, k = 0;
+DateTime startPeriod = DateTime(0, 8, 0, 0), endPeriod = DateTime(0, 19, 0, 0); 
+DateTime startAuto = DateTime(0, 8, 0, 0), endAuto = DateTime(0, 19, 0, 0);
 
 // output
 uint8_t LED_1, LED_2, LED_3, LED_4, LED_5, LED_6, LED_7;
@@ -142,28 +141,66 @@ void setupOLED() {
   }
 }
 
-void actOLED(DateTime &d, int c, int l) {
+void actOLED(DateTime &d, int c, int l, int k) {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(c, l);
 
   // Display static text
+  if (k == 0) {
+    display.println("Updated datetime now: ");
+    Serial.println("Updated datetime now: ");
+  }
+  else if (k == 1) {
+    display.println("Adjust datetime now: ");
+    Serial.println("Adjust datetime now: ");
+  }
+  else if (k == 2) {
+    if (fsmAdjustVariables.state == 1) {
+      display.println("Auto close time: ");
+      Serial.println("Auto close time: ");
+    }
+    else if (fsmAdjustVariables.state == 0) {
+      display.println("Auto open time: ");
+      Serial.println("Auto open time: ");
+    }
+  }
+  else if (k == 3) {
+    if (fsmAdjustVariables.state == 1) {
+      display.println("Auto period end: ");
+      Serial.println("Auto period end: ");
+    }
+    else if (fsmAdjustVariables.state == 0) {
+      display.println("Auto period beggin: ");
+      Serial.println("Auto period beggin: ");
+    }
+  }
+
   display.print(d.day(), DEC); 
   display.print('/');
   display.print(d.month(), DEC);
   display.print('/');
-  display.print(d.year(), DEC);
-  display.print(" / Dia: ");
-  display.print(daysOfTheWeek[d.dayOfTheWeek()]);
-  display.print(" / Horas: ");
+  display.println(d.year(), DEC);
+  display.println(daysOfTheWeek[d.dayOfTheWeek()]);
   display.print(d.hour(), DEC);
   display.print(':');
   display.print(d.minute(), DEC);
   display.print(':');
-  display.print(d.second(), DEC);
-  display.println();
-  
+  display.println(d.second(), DEC);
+
+  Serial.print(d.day(), DEC); 
+  Serial.print('/');
+  Serial.print(d.month(), DEC);
+  Serial.print('/');
+  Serial.println(d.year(), DEC);
+  Serial.println(daysOfTheWeek[d.dayOfTheWeek()]);
+  Serial.print(d.hour(), DEC);
+  Serial.print(':');
+  Serial.print(d.minute(), DEC);
+  Serial.print(':');
+  Serial.println(d.second(), DEC);
+
   display.display();
 }
 
@@ -202,21 +239,6 @@ void getCurrentDatetime(DateTime &now){
     int hora = now.hour();
     int minuto = now.minute();
     int segundo = now.second();
-
-    Serial.print(dia, DEC); 
-    Serial.print('/');
-    Serial.print(mes, DEC);
-    Serial.print('/');
-    Serial.print(ano, DEC);
-    Serial.print(" / Dia: ");
-    Serial.print(daysOfTheWeek[diaDaSemana]);
-    Serial.print(" / Horas: ");
-    Serial.print(hora, DEC);
-    Serial.print(':');
-    Serial.print(minuto, DEC);
-    Serial.print(':');
-    Serial.print(segundo, DEC);
-    Serial.println();
 }
 
 void updateControl (fsm_t & fsm) {
@@ -274,10 +296,23 @@ void updateSettings (fsm_t & fsm) {
     break;
   case 3:
     if (fsm.tis >= 3000 && (fsm.tis - fsmS1.tis <= 10)) {
-      fsm.new_state = 0;
+      fsm.new_state = 4;
     }
     else if (fsm.tis - fsmS1.tis > 10) {
       fsm.new_state = 2;
+    }
+    break;
+  case 4:
+    if (s1 < prevS1) {
+      fsm.new_state = 5;
+    }
+    break;
+  case 5:
+    if (fsm.tis >= 3000 && (fsm.tis - fsmS1.tis <= 10)) {
+      fsm.new_state = 0;
+    }
+    else if (fsm.tis - fsmS1.tis > 10) {
+      fsm.new_state = 4;
     }
     break;
   }
@@ -319,108 +354,143 @@ void updateAdjustDatetime(fsm_t & fsm) {
   }
 }
 
-void updateAdjustVariables(fsm_t & fsm) {
+void updateAdjustVariables (fsm_t & fsm) {
   switch (fsm.state)
   {
   case 0:
-    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5 && fsmControl.tis >= 500) {
       fsm.new_state = 1;
     }
     break;
   case 1:
-    if (fsmControl.new_state == 4 && fsmControl.state == 5) {
+    if (fsmControl.new_state == 4 && fsmControl.state == 5 && fsmControl.tis >= 500) {
       fsm.new_state = 0;
     }
     break;
   }
 }
 
-void adjustDatetime(fsm_t & fsm) {
+void adjustDatetime(fsm_t &fsm, DateTime &date) {
     int dia=0, hora=0, minuto=0, segundo=0, operation=1; 
     TimeSpan ts;
-    DateTime dt;
-    DateTime now = rtc.now();
+    DateTime dt, now;
+
+    if (fsmSettings.state == 0 || fsmSettings.state == 1) {
+      now = rtc.now();
+    }
+    else if ((fsmSettings.state == 2 || fsmSettings.state == 3)) {
+      if (fsmAdjustVariables.state == 1) {
+        now = endAuto;
+      }
+      if (fsmAdjustVariables.state == 0) {
+        now = startAuto;
+      }
+    }
+    else if ((fsmSettings.state == 4 || fsmSettings.state == 5)) {
+      if (fsmAdjustVariables.state == 1) {
+        now = endPeriod;
+      }
+      if (fsmAdjustVariables.state == 0) {
+        now = startPeriod;
+      }
+    }
     
     switch (fsm.state)
     {
     case 0:
-      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
+      if (fsmSettings.new_state < fsmSettings.state) {
         dia = 365;
       }
       break;
     case 1:
-      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
+      if (fsmSettings.new_state < fsmSettings.state) {
         dia = 30;
       }
       break;
     case 2:
-      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
+      if (fsmSettings.new_state < fsmSettings.state) {
         dia = 1;
       }
       break;
     case 3:
-      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
+      if (fsmSettings.new_state < fsmSettings.state) {
         hora = 1;
       }
       break;
     case 4:
-      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
+      if (fsmSettings.new_state < fsmSettings.state) {
         minuto = 1;
       }
       break;
     case 5:
-      if (fsmSettings.new_state == 0 && fsmSettings.state == 1) {
+      if (fsmSettings.new_state < fsmSettings.state) {
         segundo = 1;
       }
       break;
     }
 
-    if (fsmSettings.new_state == 0 && fsmSettings.state == 1 && fsmSettings.tis >= 500) {
+    if (fsmSettings.new_state < fsmSettings.state && fsmSettings.tis >= 500) {
       operation = -1;
     }
 
     ts = TimeSpan(dia, hora, minuto, segundo);
+
     if (operation == 1) {
       dt = now + ts;
     }
     else if (operation == -1) {
       dt = now - ts;
     }
-    rtc.adjust(dt);
+
+    if (fsmSettings.state == 0 || fsmSettings.state == 1) {
+      rtc.adjust(dt);
+    }
+    else if ((fsmSettings.state == 2 || fsmSettings.state == 3)) {
+      if (fsmAdjustVariables.state == 1) {
+        endAuto = dt;
+      }
+      if (fsmAdjustVariables.state == 0) {
+        startAuto = dt;
+      }
+    }
+    else if ((fsmSettings.state == 4 || fsmSettings.state == 5)) {
+      if (fsmAdjustVariables.state == 1) {
+        endPeriod = dt;
+      }
+      if (fsmAdjustVariables.state == 0) {
+        startPeriod = dt;
+      }
+    }
+
+    date = dt;
 }
 
-void adjustVariables (fsm_t & fsm) {
-  switch (fsm.state)
-  {
-  case 0:
-    if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
-      startPeriod += 1;
-      if (startPeriod >= 24) {
-        startPeriod = 0;
-      } 
-    }
-    break;
-  case 1:
-    if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
-      endPeriod += 1;
-      if (endPeriod >= 24) {
-        endPeriod = 0;
-      } 
-    }
-    break;
-  }
-}
+// void adjustVariables (fsm_t & fsm) {
+//   switch (fsm.state)
+//   {
+//   case 0:
+//     if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
+//       startPeriod += 1;
+//       if (startPeriod >= 24) {
+//         startPeriod = 0;
+//       } 
+//     }
+//     break;
+//   case 1:
+//     if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
+//       endPeriod += 1;
+//       if (endPeriod >= 24) {
+//         endPeriod = 0;
+//       } 
+//     }
+//     break;
+//   }
+// }
 
 void debug() {
   // DEBUGGING:
-  Serial.print("startPeriod: ");    
-  Serial.print(startPeriod);
-  Serial.println();
-  Serial.print("startPeriod: ");    
-  Serial.print(endPeriod);
-  Serial.println();
-  Serial.print("Serial.available(): ");    
-  Serial.print(Serial.available());
+  Serial.print("startPeriod.year()");
+  Serial.print(startPeriod.year());
   Serial.println();
   Serial.print("fsmControl.state: ");    
   Serial.print(fsmControl.state);
@@ -441,6 +511,7 @@ void loop()
     if (now - last_cycle > interval) {
       loop_micros = micros();
       last_cycle = now;
+      k = 0;
 
       prevS1 = s1;
       prevS2 = s2;
@@ -455,16 +526,25 @@ void loop()
 
       if (fsmControl.state == 4 || fsmControl.state == 5) {
         updateSettings(fsmSettings);
+        updateAdjustDatetime(fsmAdjustDatetime);
         if (fsmSettings.state == 0 || fsmSettings.state == 1) {
-            adjustDatetime(fsmAdjustDatetime);
-            updateAdjustDatetime(fsmAdjustDatetime);
+            k = 1;
+            adjustDatetime(fsmAdjustDatetime, date);
+            // updateAdjustDatetime(fsmAdjustDatetime);
         } else if (fsmSettings.state == 2 || fsmSettings.state == 3) {
-            adjustVariables(fsmAdjustVariables);
+            k = 2;
+            // adjustVariables(fsmAdjustVariables);
+            adjustDatetime(fsmAdjustDatetime, date);
+            updateAdjustVariables(fsmAdjustVariables);
+        } else if (fsmSettings.state == 4 || fsmSettings.state == 5) {
+            k = 3;
+            // adjustVariables(fsmAdjustVariables);
+            adjustDatetime(fsmAdjustDatetime, date);
             updateAdjustVariables(fsmAdjustVariables);
         }
       }
 
-      actOLED(date, 0, 0);
+      actOLED(date, 0, 0, k);
 
       set_state(fsmS1, s1);
       set_state(fsmS2, s2);
