@@ -7,8 +7,15 @@
 
 #define S1_pin 6
 #define S2_pin 7
-// #define S3_pin 8
-// #define S4_pin 9
+// #define Bup_pin 6
+// #define Bdown_pin 7
+#define Bup_pin 8
+#define Bdown_pin 9
+#define Sopen_pin 10
+#define Sclose_pin 11
+#define M_pin 2 
+#define D_pin 3
+// #define SL_pin 12
 
 #define SCREEN_WIDTH 128 
 #define SCREEN_HEIGHT 32
@@ -30,12 +37,15 @@ typedef struct {
 uint8_t s1, prevS1, s2, prevS2, k = 0;
 DateTime startPeriod = DateTime(0, 8, 0, 0), endPeriod = DateTime(0, 19, 0, 0); 
 DateTime startAuto = DateTime(0, 8, 0, 0), endAuto = DateTime(0, 19, 0, 0);
+uint8_t start, hour;
+uint8_t Sopen, Sclose, Bdown, Bup, Bdown_prev, Bup_prev, sensorL, N_an;
 
 // output
-uint8_t LED_1, LED_2, LED_3, LED_4, LED_5, LED_6, LED_7;
+uint8_t d, m;
 
 // Finite state machines
 fsm_t fsmAdjustDatetime, fsmAdjustVariables, fsmControl, fsmSettings, fsmS1, fsmS2;
+fsm_t fsm_manual, fsm_automatic;
 
 // variables
 unsigned long interval, last_cycle, loop_micros;
@@ -57,6 +67,8 @@ void update_tis(){
   fsmAdjustVariables.tis = cur_time - fsmAdjustVariables.tes;
   fsmS1.tis = cur_time - fsmS1.tes;
   fsmS2.tis = cur_time - fsmS2.tes;
+  fsm_manual.tis = cur_time - fsm_manual.tes;
+  fsm_automatic.tis = cur_time - fsm_automatic.tes;
 }
 
 void getRTC() {
@@ -141,6 +153,103 @@ void setupOLED() {
   }
 }
 
+void variables(){
+    prevS1 = s1;
+    prevS2 = s2;
+    Bup_prev = Bup;
+    Bdown_prev = Bdown;
+
+    s1 = digitalRead(S1_pin);
+    s2 = digitalRead(S2_pin);
+    Bup = digitalRead(Bup_pin);
+    Bdown = digitalRead(Bdown_pin);    
+    Sopen = !digitalRead(Sopen_pin);
+    Sclose = !digitalRead(Sclose_pin);
+    // sensorL = analogRead(SL_pin);
+    sensorL = 0;
+
+    if(m==1) digitalWrite(M_pin, HIGH);
+    else digitalWrite(M_pin, LOW);
+    if(d==1) digitalWrite(D_pin, HIGH);
+    else digitalWrite(D_pin, LOW);    
+}
+
+void Fmanual(fsm_t &manual, fsm_t &control){
+  if(manual.state > 0 && control.state > 1) manual.new_state = 0;
+  switch(manual.state){
+      case 0:
+          if (control.state==0 || control.state==1) manual.new_state=1;
+        break;
+      case 1:
+          if(Bdown<Bdown_prev && !Sclose) manual.new_state=2;
+          else if(Bup<Bup_prev && !Sopen) manual.new_state=4;
+          break;
+      case 2:
+          if(manual.tis<500 && Bdown>Bdown_prev) manual.new_state=3;
+          else if(Sclose || (manual.tis>500 && Bup>Bup_prev)) manual.new_state=1;
+          break;
+      case 3:
+          if(Sclose || Bdown<Bdown_prev || Bup<Bup_prev) manual.new_state=1;
+          break;
+      case 4:
+          if(manual.tis<500 && Bup>Bup_prev) manual.new_state=5;
+          else if(Sopen || (manual.tis>500 && Bup>Bup_prev)) manual.new_state=1;
+          break;
+      case 5:
+          if(Sopen || Bdown<Bdown_prev || Bup<Bup_prev) manual.new_state=1;
+          break;
+  }
+  switch(manual.new_state){
+      case 1:
+          m=1;
+          break;
+      case 2:
+          d=0;
+          m=0;
+          break;
+      case 4:
+          d=1;
+          m=0;
+          break;
+  }
+}
+
+void Fautomatico (fsm_t &automatic, fsm_t &control, int hour_cl, int minute_cl, int hour_op, int minute_op, DateTime &dt) {
+  int hora = dt.hour();
+  int minuto = dt.minute();
+
+  if(automatic.state > 0 && control.state > 1) automatic.new_state = 0;
+  switch(automatic.state){
+      case 1:
+      // horas
+          if(hour_cl == hora && minute_cl == minuto && !Sclose) automatic.new_state=2;
+          else if(hour_op == hora && minute_op == minuto && !Sopen) automatic.new_state=3;
+      //sensor
+          else if(hour_cl >= hora && minute_cl >= minuto && sensorL >= N_an && !Sclose) automatic.new_state=2;
+          else if(hour_op <= hora && minute_op <= minuto && sensorL < N_an && !Sopen) automatic.new_state=3;            
+          break;
+      case 2:
+          if(Sclose) automatic.new_state=1;
+          break;
+      case 3:
+          if(Sopen) automatic.new_state=1;
+          break;
+  }
+  switch(automatic.new_state){
+      case 1:
+          m=0;
+          break;
+      case 2:
+          d=0;
+          m=1;
+          break;
+      case 3:
+          d=1;
+          m=1;
+          break;
+  }
+}
+
 void actOLED(DateTime &d, int c, int l, int k) {
   display.clearDisplay();
   display.setTextSize(1);
@@ -149,8 +258,8 @@ void actOLED(DateTime &d, int c, int l, int k) {
 
   // Display static text
   if (k == 0) {
-    display.println("Updated datetime now: ");
-    Serial.println("Updated datetime now: ");
+    display.println("Now: ");
+    Serial.println("Now: ");
   }
   else if (k == 1) {
     display.println("Adjust datetime now: ");
@@ -211,8 +320,20 @@ void setup()
 
   pinMode(S1_pin, INPUT);
   pinMode(S2_pin, INPUT);
+  pinMode(Bup_pin, INPUT);
+  pinMode(Bdown_pin, INPUT);
+  pinMode(Sopen_pin, INPUT_PULLUP);
+  pinMode(Sclose_pin, INPUT_PULLUP);
+  // pinMode(SL_pin, INPUT);
+  pinMode(M_pin, OUTPUT);
+  pinMode(D_pin, OUTPUT);
 
   interval = 10;
+  Bup = 1;
+  Bdown = 1;
+  d = 0;
+  m = 1;
+  N_an = 1;
 
   Serial.begin(9600);
 
@@ -226,6 +347,11 @@ void setup()
   set_state(fsmControl, 0);
   set_state(fsmSettings, 0);
   set_state(fsmAdjustVariables, 0);
+  set_state(fsm_manual, 0);
+  set_state(fsm_automatic, 0);
+
+  Serial.print("fsm_manual.state: ");  
+  Serial.print(fsm_manual.state);
 
   delay(10000);
 }
@@ -489,17 +615,20 @@ void adjustDatetime(fsm_t &fsm, DateTime &date) {
 
 void debug() {
   // DEBUGGING:
-  Serial.print("startPeriod.year()");
-  Serial.print(startPeriod.year());
-  Serial.println();
-  Serial.print("fsmControl.state: ");    
-  Serial.print(fsmControl.state);
-  Serial.println();
-  Serial.print("fsmSettings.state: ");    
-  Serial.print(fsmSettings.state);
-  Serial.println();
-  Serial.print("fsmAdjustDatetime.state: ");    
-  Serial.print(fsmAdjustDatetime.state);
+  Serial.print("sensorL: ");    
+  Serial.println(sensorL);
+  Serial.print("m: ");
+  Serial.println(m);
+  Serial.print("d: ");    
+  Serial.println(d);
+  Serial.print("Bdown: ");    
+  Serial.println(Bdown);
+  Serial.print("Bup: ");    
+  Serial.println(Bup);
+  Serial.print("Sclose: ");    
+  Serial.println(Sclose);
+  Serial.print("Sopen: ");    
+  Serial.println(Sopen);
   Serial.println();
   Serial.println();
   Serial.println();
@@ -513,10 +642,7 @@ void loop()
       last_cycle = now;
       k = 0;
 
-      prevS1 = s1;
-      prevS2 = s2;
-      s1 = digitalRead(S1_pin);
-      s2 = digitalRead(S2_pin);
+      variables();
 
       update_tis();
 
@@ -524,6 +650,9 @@ void loop()
 
       updateControl(fsmControl);
 
+      Fmanual(fsm_manual, fsmControl);
+      Fautomatico(fsm_automatic, fsmControl, endPeriod.hour(), endPeriod.minute(), startPeriod.hour(), startPeriod.minute(), date);
+      
       if (fsmControl.state == 4 || fsmControl.state == 5) {
         updateSettings(fsmSettings);
         updateAdjustDatetime(fsmAdjustDatetime);
@@ -552,6 +681,7 @@ void loop()
       set_state(fsmAdjustVariables, fsmAdjustVariables.new_state);
       set_state(fsmControl, fsmControl.new_state);
       set_state(fsmSettings, fsmSettings.new_state);
+      set_state(fsm_manual, fsm_manual.new_state);
 
       debug();
   }
