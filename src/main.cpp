@@ -15,7 +15,7 @@
 #define Sclose_pin 11
 #define M_pin 2 
 #define D_pin 3
-// #define SL_pin 12
+#define SL_pin 28
 
 #define SCREEN_WIDTH 128 
 #define SCREEN_HEIGHT 32
@@ -165,8 +165,8 @@ void variables(){
     Bdown = digitalRead(Bdown_pin);    
     Sopen = !digitalRead(Sopen_pin);
     Sclose = !digitalRead(Sclose_pin);
-    // sensorL = analogRead(SL_pin);
-    sensorL = 0;
+    sensorL = analogRead(SL_pin);
+    // sensorL = 0;
 
     if(m==1) digitalWrite(M_pin, HIGH);
     else digitalWrite(M_pin, LOW);
@@ -324,7 +324,7 @@ void setup()
   pinMode(Bdown_pin, INPUT);
   pinMode(Sopen_pin, INPUT_PULLUP);
   pinMode(Sclose_pin, INPUT_PULLUP);
-  // pinMode(SL_pin, INPUT);
+  pinMode(SL_pin, INPUT);
   pinMode(M_pin, OUTPUT);
   pinMode(D_pin, OUTPUT);
 
@@ -333,7 +333,7 @@ void setup()
   Bdown = 1;
   d = 0;
   m = 1;
-  N_an = 1;
+  N_an = 50;
 
   Serial.begin(9600);
 
