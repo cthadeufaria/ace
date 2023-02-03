@@ -437,8 +437,8 @@ void setup()
 
   startPeriod = DateTime(2022, 2, 2, 10, 0, 0); 
   endPeriod = DateTime(2022, 2, 2, 11, 0, 0); 
-  startAuto = DateTime(2022, 2, 2, 23, 16, 0); 
-  endAuto = DateTime(2022, 2, 2, 23, 17, 0);
+  startAuto = DateTime(2022, 2, 2, 10, 5, 0); 
+  endAuto = DateTime(2022, 2, 2, 10, 6, 0);
 
   Serial.begin(9600);
 
@@ -735,6 +735,8 @@ void debug() {
   // DEBUGGING:startAuto, endAuto, date
   Serial.print("fsm automatic: ");
   Serial.println(fsm_automatic.state);
+  Serial.print("fsm manual: ");
+  Serial.println(fsm_manual.state);
   Serial.print("startAuto.minute: ");
   Serial.println(startAuto.minute());
   Serial.print("endAuto.minute: ");
