@@ -1,14 +1,11 @@
-## Project todo
-1. fix updateAdjustDatetime button pressing [X]
-1. fix updateAdjustVariables button pressing [X]
-1. same thing as above for adjustDatetime [X]
-1. same thing as above for adjustVariables [X]
-1. create button logic to subtract values in adjustDatetime [X] 
-1. fix adjustDatetime logic for not surpassing possible datetimes (use datetime operations) [X]
-1. fix adjustVariables logic for not surpassing 23h [X]
-1. implement main logic for defining automatic/manual periods []
-1. implement curtains action functions and logic []
-1. implement LCD view with I2C protocol [X]
-1. define conditions to each print in display and adjust actOLED function accordingly [X]
-2. adapt variables to: open and close time [X]
-1. create and adapt logic to variables: start of auto period; end of auto period [X] 
+# Automatic curtains
+## Buttons functions
+### Begginning:
+1. S2 long press: manual > automatic > settings
+### When in settings:
+1. S1 long press: adjust datetime > adjust auto period > adjust auto open close
+1. S1 quick press < 0.5s: up each date time variable
+1. S1 quick press > 0.5s: down each date time variable
+1. S2 quick press < 0.5s: change datetime variable to be adjusted
+1. S2 quick press > 0.5s: change which variable is set: close or open datetime
+
