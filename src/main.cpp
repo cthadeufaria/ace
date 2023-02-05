@@ -214,59 +214,6 @@ void Fmanual(fsm_t &manual, fsm_t &control){
   }
 }
 
-// void Fautomatico (fsm_t &automatic, fsm_t &control, DateTime &open, DateTime &close, DateTime &openPeriod, DateTime &closePeriod, DateTime &dt) {
-//   int hora = dt.hour();
-//   int minuto = dt.minute();
-
-//   if(automatic.state > 0 && (control.state < 2 || control.state > 3)) automatic.new_state = 0;
-//   switch(automatic.state){
-//       case 0:
-//         if (control.state==2 || control.state==3) automatic.new_state=1;
-//         break;
-//       case 1:
-//         // se estiver entre as horas de abrir automático, abre (não estando já aberto)
-//         if(((open.hour() < hora) || (open.hour() == hora && open.minute() <= minuto)) && 
-//         ((close.hour() > hora) || (close.hour() == hora && close.minute() >= minuto)) && 
-//         !Sopen) automatic.new_state=3;
-//         // se estiver fora das horas de abrir automático
-//         else if(((open.hour() > hora) || (open.hour() == hora && open.minute() > minuto)) || 
-//         ((close.hour() < hora) || (close.hour() == hora && close.minute() < minuto))) {
-//           // se sensor tiver luz e não estiver aberto, abre
-//           if (!Sopen && (sensorL > N_an)) {
-//             automatic.new_state=3;
-//           }
-//           // se sensor não tiver luz e não estiver fechado, fecha
-//           if (!Sclose && (sensorL < N_an)) {
-//             automatic.new_state=2;
-//           }
-//         }
-//         // se não tiver luz, fecha (não estando fechado)
-//         else if (sensorL < N_an && !Sclose) {
-//             automatic.new_state=2;
-//           }
-//         break;
-//       case 2:
-//           if(Sclose) automatic.new_state=1;
-//           break;
-//       case 3:
-//           if(Sopen) automatic.new_state=1;
-//           break;
-//   }
-//   switch(automatic.new_state){
-//       case 1:
-//           m=0; // stop
-//           break;
-//       case 2:
-//           d=0; // down
-//           m=1;
-//           break;
-//       case 3:
-//           d=1; // up
-//           m=1;
-//           break;
-//   }
-// }
-
 void Fautomatico (fsm_t &automatic, fsm_t &control, DateTime &open, DateTime &close, DateTime &dt) {
   int hora = dt.hour();
   int minuto = dt.minute();
@@ -305,44 +252,6 @@ void Fautomatico (fsm_t &automatic, fsm_t &control, DateTime &open, DateTime &cl
           break;
   }
 }
-
-// void Fautomatico2 (fsm_t &automatic, fsm_t &control, DateTime &open, DateTime &close, DateTime &dt) {
-//   int hora = dt.hour();
-//   int minuto = dt.minute();
-
-//   if(automatic.state > 0 && (control.state < 2 || control.state > 3)) automatic.new_state = 0;
-//   switch(automatic.state){
-//       case 0:
-//         if (control.state==2 || control.state==3) automatic.new_state=1;
-//         break;
-//       case 1:
-//       // horas
-//           // Se passada a hora de abrir e tiver luz, abre a persiana.
-//           if(((open.hour() < hora) || (open.hour() == hora && open.minute() <= minuto)) && !Sopen && sensorL > N_an) automatic.new_state = 3; // sensor = 1 > pressed
-//           // Se passada a hora de fechar e não tem luz, fecha a persiana.
-//           else if(((close.hour() < hora) || (close.hour() == hora && close.minute() <= minuto)) && !Sclose && sensorL < N_an) automatic.new_state = 2;
-//           break;
-//       case 2:
-//           if(Sclose) automatic.new_state=1;
-//           break;
-//       case 3:
-//           if(Sopen) automatic.new_state=1;
-//           break;
-//   }
-//   switch(automatic.new_state){
-//       case 1:
-//           m=0; // stop
-//           break;
-//       case 2:
-//           d=0; // down
-//           m=1;
-//           break;
-//       case 3:
-//           d=1; // up
-//           m=1;
-//           break;
-//   }
-// }
 
 void actOLED(DateTime &d, int c, int l, int k) {
   display.clearDisplay();
