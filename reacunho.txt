@@ -1,0 +1,39 @@
+void Fmanual(fsm_t &fsm, fsm_t &fsmControl){
+  if(fsm.state > 0 && fsmControl.state > 1) fsm.new_state = 0;
+  switch(fsm.state){
+      case 0:
+          if (fsmControl.state==0 || fsmControl.state==1) fsm.new_state=1;
+        break;
+      case 1:
+          if(Bdown<Bdown_prev && !Sclose) fsm.new_state=2;
+          else if(Bup<Bup_prev && !Sopen) fsm.new_state=4;
+          break;
+      case 2:
+          if(fsm.tis<500 && Bdown>Bdown_prev) fsm.new_state=3;
+          else if(Sclose || (fsm.tis>500 && Bup>Bup_prev)) fsm.new_state=1;
+          break;
+      case 3:
+          if(Sclose || Bdown<Bdown_prev || Bup<Bup_prev) fsm.new_state=1;
+          break;
+      case 4:
+          if(fsm.tis<500 && Bup>Bup_prev) fsm.new_state=5;
+          else if(Sopen || (fsm.tis>500 && Bup>Bup_prev)) fsm.new_state=1;
+          break;
+      case 5:
+          if(Sopen || Bdown<Bdown_prev || Bup<Bup_prev) fsm.new_state=1;
+          break;
+  }
+  switch(fsm.new_state){
+      case 1:
+          m=0;
+          break;
+      case 2:
+          d=0;
+          m=1;
+          break;
+      case 4:
+          d=1;
+          m=1;
+          break;
+  }
+}

@@ -7,8 +7,6 @@
 
 #define S1_pin 6
 #define S2_pin 7
-// #define Bup_pin 6
-// #define Bdown_pin 7
 #define Bup_pin 8
 #define Bdown_pin 9
 #define Sopen_pin 10
@@ -44,8 +42,7 @@ uint8_t Sopen, Sclose, Bdown, Bup, Bdown_prev, Bup_prev, sensorL, N_an;
 uint8_t d, m;
 
 // Finite state machines
-fsm_t fsmAdjustDatetime, fsmAdjustVariables, fsmControl, fsmSettings, fsmS1, fsmS2;
-fsm_t fsm_manual, fsm_automatic;
+fsm_t fsmAdjustDatetime, fsmAdjustVariables, fsmControl, fsmSettings, fsmS1, fsmS2, fsm_manual, fsm_automatic;
 
 // variables
 unsigned long interval, last_cycle, loop_micros;
@@ -61,9 +58,9 @@ void set_state(fsm_t & fsm, int new_state)
 
 void update_tis(){
   unsigned long cur_time = millis();   // Just one call to millis()
-  fsmAdjustDatetime.tis = cur_time - fsmAdjustDatetime.tes;
-  fsmControl.tis = cur_time - fsmControl.tes;
-  fsmSettings.tis = cur_time - fsmSettings.tes;
+  fsmAdjustDatetime.tis = cur_time - fsmAdjustDatetime.tes; // ok
+  fsmControl.tis = cur_time - fsmControl.tes; // ok
+  fsmSettings.tis = cur_time - fsmSettings.tes; // ok
   fsmAdjustVariables.tis = cur_time - fsmAdjustVariables.tes;
   fsmS1.tis = cur_time - fsmS1.tes;
   fsmS2.tis = cur_time - fsmS2.tes;
@@ -617,28 +614,6 @@ void adjustDatetime(fsm_t &fsm, DateTime &date) {
 
     date = dt;
 }
-
-// void adjustVariables (fsm_t & fsm) {
-//   switch (fsm.state)
-//   {
-//   case 0:
-//     if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
-//       startPeriod += 1;
-//       if (startPeriod >= 24) {
-//         startPeriod = 0;
-//       } 
-//     }
-//     break;
-//   case 1:
-//     if (fsmSettings.new_state == 2 && fsmSettings.state == 3) {
-//       endPeriod += 1;
-//       if (endPeriod >= 24) {
-//         endPeriod = 0;
-//       } 
-//     }
-//     break;
-//   }
-// }
 
 void debug() {
   // DEBUGGING:startAuto, endAuto, date

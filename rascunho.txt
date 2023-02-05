@@ -1,0 +1,38 @@
+void Fautomatico (fsm_t &fsm, fsm_t &fsmControl, DateTime &open, DateTime &close, DateTime &dt) {
+  int hora = dt.hour();
+  int minuto = dt.minute();
+
+  if(fsm.state > 0 && (fsmControl.state<2 || fsmControl.state>3)) fsm.new_state = 0;
+  switch(fsm.state){
+      case 0:
+        if (fsmControl.state==2 || fsmControl.state==3) fsm.new_state=1;
+        break;
+      case 1:
+      // horas
+          if((close.hour() == hora && close.minute() == minuto) && !Sclose) fsm.new_state=2;
+          else if((open.hour() == hora && open.minute() == minuto) && !Sopen) fsm.new_state=3;
+      //sensor
+          else if((close.hour() < hora) || (close.hour() == hora && close.minute() <= minuto) && (sensorL > N_an) && !Sclose) fsm.new_state=2;
+          else if((open.hour() < hora) || (open.hour() == hora && open.minute() <= minuto) && (sensorL < N_an) && !Sopen) fsm.new_state=3;            
+          break;
+      case 2:
+          if(Sclose) fsm.new_state=1;
+          break;
+      case 3:
+          if(Sopen) fsm.new_state=1;
+          break;
+  }
+  switch(fsm.new_state){
+      case 1:
+          m=0;
+          break;
+      case 2: // down
+          d=0;
+          m=1;
+          break;
+      case 3: // up
+          d=1;
+          m=1;
+          break;
+  }
+}
